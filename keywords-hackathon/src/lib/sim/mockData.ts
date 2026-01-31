@@ -7,6 +7,9 @@ export const MOCK_PERSONAS: Persona[] = [
     role: 'Gen Z Rights Activist',
     tags: ['Social Justice', 'Digital Native', 'Skeptical'],
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+    backstory: 'Activist fighting for digital rights.',
+    powerLevel: 'High',
+    sentiment: 30
   },
   {
     id: 'p2',
@@ -14,6 +17,9 @@ export const MOCK_PERSONAS: Persona[] = [
     role: 'Institutional Investor',
     tags: ['ROI-Focused', 'Risk-Averse', 'Traditional'],
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marcus',
+    backstory: 'Veteran investor managing a $50B fund.',
+    powerLevel: 'High',
+    sentiment: 80
   },
   {
     id: 'p3',
@@ -21,6 +27,9 @@ export const MOCK_PERSONAS: Persona[] = [
     role: 'Privacy Watchdog',
     tags: ['Data Security', 'Regulatory Compliance', 'Vocal'],
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Elena',
+    backstory: 'Former regulator turned privacy advocate.',
+    powerLevel: 'Medium',
+    sentiment: 20
   },
   {
     id: 'p4',
@@ -28,6 +37,9 @@ export const MOCK_PERSONAS: Persona[] = [
     role: 'Tech Early Adopter',
     tags: ['Innovation', 'Feature-Hungry', 'Forgiving'],
     avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David',
+    backstory: 'Tech blogger who loves new gadgets.',
+    powerLevel: 'Low',
+    sentiment: 90
   },
 ];
 

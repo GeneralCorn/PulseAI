@@ -9,6 +9,9 @@ export interface Persona {
   name: string;
   role: string; // e.g., "Gen Z Rights Activist"
   tags: string[]; // Psychographics
+  backstory: string;
+  powerLevel: 'High' | 'Medium' | 'Low';
+  sentiment: number; // 0-100
   avatarUrl?: string;
 }
 

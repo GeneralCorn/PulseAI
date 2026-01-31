@@ -17,7 +17,7 @@ export async function startSimulation(formData: FormData) {
   };
 
   try {
-    const result = await runSimulation([idea], 'single', { useMock: true }); // Force mock for MVP demo
+    const result = await runSimulation([idea], 'single', { useMock });
 
     // Persist to Supabase
     const { data, error } = await supabase
