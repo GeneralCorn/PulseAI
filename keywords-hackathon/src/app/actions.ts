@@ -114,10 +114,12 @@ export async function startSimulation(formData: FormData) {
     
     const duration = Date.now() - startTime;
     console.log(`[Action] Simulation completed in ${duration}ms`);
+    console.log(`[Action] Credit usage from simulation: $${result.creditUsage?.toFixed(6) || '0.000000'}`);
 
     // 2.5. Update idea(s) with credit usage
     if (dbEnabled && result.creditUsage) {
       const creditPerIdea = result.creditUsage / ideas.length; // Split evenly if comparing
+      console.log(`[Action] Updating ${ideas.length} idea(s) with $${creditPerIdea.toFixed(6)} each`);
 
       for (const idea of ideas) {
         // Fetch current credit usage
@@ -141,6 +143,8 @@ export async function startSimulation(formData: FormData) {
           console.log(`[Action] Updated idea ${idea.id} credit usage: $${newCreditUsage.toFixed(6)}`);
         }
       }
+    } else {
+      console.warn(`[Action] Skipping credit usage update - dbEnabled: ${dbEnabled}, creditUsage: ${result.creditUsage}`);
     }
 
     // 3. Persist Simulation result linked to User and Idea(s)
@@ -172,5 +176,70 @@ export async function startSimulation(formData: FormData) {
   } catch (error) {
     console.error("Simulation failed:", error);
     return { success: false, error: "Failed to run simulation. Please check server logs." };
+  }
+}
+
+export async function saveSimulationVersion(
+  simulationId: string,
+  updatedResult: any
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    // Get the current simulation
+    const { data: currentSim, error: fetchError } = await supabase
+      .from("simulations")
+      .select("*")
+      .eq("id", simulationId)
+      .single();
+
+    if (fetchError || !currentSim) {
+      return { success: false, error: "Simulation not found" };
+    }
+
+    // Determine the parent_simulation_id
+    const parentId = currentSim.parent_simulation_id || currentSim.id;
+
+    // Get the highest version number for this simulation chain
+    const { data: versions } = await supabase
+      .from("simulations")
+      .select("version")
+      .or(`id.eq.${parentId},parent_simulation_id.eq.${parentId}`)
+      .order("version", { ascending: false })
+      .limit(1);
+
+    const nextVersion = (versions?.[0]?.version || 1) + 1;
+
+    // Create new version
+    const { data: newVersion, error: insertError } = await supabase
+      .from("simulations")
+      .insert({
+        mode: currentSim.mode,
+        user_id: user.id,
+        idea_id: currentSim.idea_id,
+        input_json: currentSim.input_json,
+        result_json: JSON.stringify(updatedResult),
+        version: nextVersion,
+        parent_simulation_id: parentId,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Failed to save simulation version:", insertError);
+      return { success: false, error: "Failed to save version" };
+    }
+
+    return { success: true, versionId: newVersion.id, version: nextVersion };
+  } catch (error) {
+    console.error("Error saving simulation version:", error);
+    return { success: false, error: "Failed to save version" };
   }
 }

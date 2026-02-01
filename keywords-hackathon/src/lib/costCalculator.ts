@@ -23,6 +23,12 @@ function normalizeModelName(model: string): string {
     return "gpt-5.2";
   }
 
+  // Handle GPT-5 base model (gpt-5, gpt-5-2025-08-07, etc.)
+  // Must come after gpt-5-mini and gpt-5.2 checks
+  if (lowerModel.includes("gpt-5")) {
+    return "gpt-5";
+  }
+
   // Handle GPT-4o variants
   if (lowerModel.includes("gpt-4o-mini")) {
     return "gpt-4o-mini";
@@ -39,6 +45,10 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-5.2": {
     input: 1.75,   // $1.75 per 1M input tokens
     output: 14.00, // $14.00 per 1M output tokens
+  },
+  "gpt-5": {
+    input: 1.50,   // $1.50 per 1M input tokens
+    output: 12.00, // $12.00 per 1M output tokens
   },
   "gpt-5-mini": {
     input: 0.25,   // $0.25 per 1M input tokens

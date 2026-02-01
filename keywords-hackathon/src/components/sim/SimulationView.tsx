@@ -10,21 +10,29 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
 import { UserProfile } from "@/components/UserProfile";
 import { useState, useCallback, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { History, ChevronLeft as ChevronLeftIcon, ChevronRight as ChevronRightIcon } from "lucide-react";
 
 interface SimulationViewProps {
   result: SimulationResult;
   onBack?: () => void;
   isReadOnly?: boolean;
+  simulationId?: string;
 }
 
 export function SimulationView({
   result,
   onBack,
   isReadOnly = false,
+  simulationId,
 }: SimulationViewProps) {
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [aiSummary, setAiSummary] = useState<ExperimentSummary | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [versions, setVersions] = useState<{ id: string; version: number; created_at: string }[]>([]);
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(0);
+  const [loadingVersion, setLoadingVersion] = useState(false);
+
   const mainIdea = result.ideas[0];
   const compareIdea = result.ideas[1];
 
@@ -109,6 +117,53 @@ export function SimulationView({
     handleGenerateSummary();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load simulation versions
+  useEffect(() => {
+    if (!simulationId || isReadOnly) return;
+
+    const loadVersions = async () => {
+      const supabase = createClient();
+
+      // First, get the current simulation to find the parent
+      const { data: currentSim } = await supabase
+        .from("simulations")
+        .select("id, version, parent_simulation_id, created_at")
+        .eq("id", simulationId)
+        .single();
+
+      if (!currentSim) return;
+
+      const parentId = currentSim.parent_simulation_id || currentSim.id;
+
+      // Get all versions in this chain
+      const { data: allVersions } = await supabase
+        .from("simulations")
+        .select("id, version, created_at")
+        .or(`id.eq.${parentId},parent_simulation_id.eq.${parentId}`)
+        .order("version", { ascending: true });
+
+      if (allVersions && allVersions.length > 0) {
+        setVersions(allVersions);
+        // Find the current version index
+        const currentIndex = allVersions.findIndex(v => v.id === simulationId);
+        setCurrentVersionIndex(currentIndex >= 0 ? currentIndex : 0);
+      }
+    };
+
+    loadVersions();
+  }, [simulationId, isReadOnly]);
+
+  // Navigate to a different version
+  const navigateToVersion = useCallback(async (index: number) => {
+    if (index < 0 || index >= versions.length || loadingVersion) return;
+
+    setLoadingVersion(true);
+    const versionId = versions[index].id;
+
+    // Reload the page with the new version
+    window.location.href = `/run/${versionId}`;
+  }, [versions, loadingVersion]);
+
   // Context for the Director Chat
   const directorContext = `
     Simulation ID: ${result.runId}
@@ -144,6 +199,38 @@ export function SimulationView({
               / Command Center
             </span>
           </h1>
+
+          {/* Version Navigation */}
+          {!isReadOnly && versions.length > 1 && (
+            <div className="flex items-center gap-2 ml-4 border-l border-border/40 pl-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateToVersion(currentVersionIndex - 1)}
+                disabled={currentVersionIndex === 0 || loadingVersion}
+                className="h-7"
+              >
+                <ChevronLeftIcon className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 rounded text-xs">
+                <History className="h-3 w-3" />
+                <span>
+                  v{versions[currentVersionIndex]?.version || 1} of {versions.length}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateToVersion(currentVersionIndex + 1)}
+                disabled={currentVersionIndex === versions.length - 1 || loadingVersion}
+                className="h-7"
+              >
+                Next
+                <ChevronRightIcon className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {isReadOnly && (
@@ -221,6 +308,8 @@ export function SimulationView({
                   context={directorContext}
                   simulationId={result.runId}
                   variant="embedded"
+                  
+                  
                   disabled={isLoadingSummary}
                 />
               </div>

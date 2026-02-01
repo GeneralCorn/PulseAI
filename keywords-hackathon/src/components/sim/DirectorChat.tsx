@@ -57,7 +57,18 @@ export function DirectorChat({
       content: input,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantMessageId = crypto.randomUUID();
+
+    // Add both user message and empty assistant message immediately
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+      },
+    ]);
     setInput("");
     setIsLoading(true);
     setError(null);
@@ -91,17 +102,6 @@ export function DirectorChat({
         throw new Error("No response body");
       }
 
-      const assistantMessageId = crypto.randomUUID();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-        },
-      ]);
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -119,6 +119,8 @@ export function DirectorChat({
     } catch (err) {
       console.error("Chat error:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
+      // Remove the empty assistant message on error
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
     } finally {
       setIsLoading(false);
     }

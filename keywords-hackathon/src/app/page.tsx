@@ -73,7 +73,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold tracking-tight text-foreground"
             >
-              Simulate the Future.
+              See the Future.
               <span className="block text-primary bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
                 Before You Build It.
               </span>
