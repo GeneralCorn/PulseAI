@@ -185,45 +185,57 @@ export function PersonaChatModal({
               <AvatarImage src={avatarUrl} className="object-cover" />
               <AvatarFallback>{name[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               <span>{name}</span>
               <span className="text-xs font-normal text-muted-foreground">
                 {occupation}
               </span>
+              <span className="text-[10px] font-normal text-zinc-500">
+                {[
+                  persona.demographics.age && `${persona.demographics.age}y`,
+                  persona.demographics.gender,
+                  persona.demographics.location,
+                  persona.demographics.income_level,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
             </div>
           </DialogTitle>
-          <DialogDescription className="mt-2 space-y-4">
-            <div className="p-3 bg-zinc-900 rounded-md border border-zinc-800 space-y-2">
-              <div>
-                <span className="text-xs font-semibold text-zinc-300 block mb-1">
-                  Profile
-                </span>
-                <p className="text-xs text-zinc-400 italic leading-relaxed break-words">
-                  &ldquo;{persona.profile.one_liner}&rdquo;
-                </p>
+          <DialogDescription asChild>
+            <div className="mt-2 space-y-4 text-muted-foreground text-sm">
+              <div className="p-3 bg-zinc-900 rounded-md border border-zinc-800 space-y-2">
+                <div>
+                  <span className="text-xs font-semibold text-zinc-300 block mb-1">
+                    Profile
+                  </span>
+                  <span className="text-xs text-zinc-400 italic leading-relaxed break-words block">
+                    &ldquo;{persona.profile.one_liner}&rdquo;
+                  </span>
+                </div>
+                {persona.profile.pain_points.length > 0 && (
+                  <div className="pt-2 border-t border-zinc-800">
+                    <span className="text-xs font-semibold text-zinc-300 block mb-1">
+                      Pain Points
+                    </span>
+                    <ul className="text-xs text-zinc-400 space-y-0.5">
+                      {persona.profile.pain_points.slice(0, 3).map((point, i) => (
+                        <li key={i}>• {point}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {response && (
+                  <div className="pt-2 border-t border-zinc-800">
+                    <span className="text-xs font-semibold text-zinc-300 block mb-1">
+                      Initial Response
+                    </span>
+                    <span className="text-xs text-zinc-400 leading-relaxed break-words block">
+                      {response.free_text || "Thinking..."}
+                    </span>
+                  </div>
+                )}
               </div>
-              {persona.profile.pain_points.length > 0 && (
-                <div className="pt-2 border-t border-zinc-800">
-                  <span className="text-xs font-semibold text-zinc-300 block mb-1">
-                    Pain Points
-                  </span>
-                  <ul className="text-xs text-zinc-400 space-y-0.5">
-                    {persona.profile.pain_points.slice(0, 3).map((point, i) => (
-                      <li key={i}>• {point}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {response && (
-                <div className="pt-2 border-t border-zinc-800">
-                  <span className="text-xs font-semibold text-zinc-300 block mb-1">
-                    Initial Response
-                  </span>
-                  <p className="text-xs text-zinc-400 leading-relaxed break-words">
-                    {response.free_text || "Thinking..."}
-                  </p>
-                </div>
-              )}
             </div>
           </DialogDescription>
         </DialogHeader>
