@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { SimulationResult } from "@/lib/sim/types";
 import { PersonaCard } from "@/components/sim/PersonaCard";
 import { ResultPanels } from "@/components/sim/ResultPanels";
-import { DecisionTree } from "@/components/sim/DecisionTree";
-import { DirectorChat } from "@/components/sim/DirectorChat";
+import { CenterStage } from "@/components/sim/CenterStage";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -90,14 +89,9 @@ export default async function RunPage({ params }: RunPageProps) {
           </div>
         </div>
 
-        {/* Center Column: Logic/Decision Tree */}
+        {/* Center Column: Director Chat & Logic Trace */}
         <div className="col-span-5 flex flex-col gap-4 min-h-0">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-            Logic Trace
-          </h2>
-          <div className="flex-1 min-h-0">
-            <DecisionTree result={result} />
-          </div>
+          <CenterStage result={result} directorContext={directorContext} />
         </div>
 
         {/* Right Column: Result Panels */}
@@ -110,9 +104,6 @@ export default async function RunPage({ params }: RunPageProps) {
           </div>
         </div>
       </div>
-
-      {/* Director Chat Widget */}
-      <DirectorChat context={directorContext} />
     </div>
   );
 }

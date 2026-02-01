@@ -6,8 +6,8 @@ import { generateText } from "ai";
 
 interface SimulationOptions {
   useMock?: boolean;
-  critiqueIntensity?: number;
   personaCount?: number;
+  intensityMode?: "war_room" | "quick";
 }
 
 // Helper to safe parse JSON from LLM
@@ -41,11 +41,19 @@ export async function runSimulation(
     const mainIdea = ideas[0]; // MVP supports single idea mainly
 
     // --- Step 1: Director (Orchestrator) ---
-    console.log("[Director] Analyzing idea:", mainIdea.title);
+    console.log(`[Director] Analyzing ${ideas.length} idea(s) in ${mode} mode...`);
+
+    let directorPrompt = "";
+    if (mode === "compare" && ideas.length >= 2) {
+      directorPrompt = `Mode: COMPARE\nIdea A: ${ideas[0].title} - ${ideas[0].description}\nIdea B: ${ideas[1].title} - ${ideas[1].description}`;
+    } else {
+      directorPrompt = `Idea: ${ideas[0].title}\nContext: ${ideas[0].description}\nMode: SINGLE`;
+    }
+
     const directorResult = await generateText({
-      model: keywords(MODELS.DIRECTOR),
+      model: keywords.chat(MODELS.DIRECTOR),
       system: SYSTEM_PROMPTS.DIRECTOR,
-      prompt: `Idea: ${mainIdea.title}\nContext: ${mainIdea.description}\nMode: ${mode}`,
+      prompt: directorPrompt,
     });
 
     const directorOutput = parseJSON(directorResult.text);
@@ -58,26 +66,63 @@ export async function runSimulation(
     // --- Step 2: Spawners (Personas) ---
     console.log(`[Spawners] Spawning ${personas.length} personas...`);
 
-    const argumentPromises = personas.map(async (persona) => {
-      const spawnerResult = await generateText({
-        model: keywords(MODELS.SPAWNER),
-        system: SYSTEM_PROMPTS.SPAWNER(mainIdea, persona),
-        prompt: "Critique this idea.",
+    let argumentsList: Argument[] = [];
+
+    if (mode === "compare" && ideas.length >= 2) {
+      const argumentPromises = personas.map(async (persona) => {
+        const spawnerResult = await generateText({
+          model: keywords.chat(MODELS.SPAWNER),
+          system: SYSTEM_PROMPTS.SPAWNER_COMPARE(ideas[0], ideas[1], persona),
+          prompt: "Compare these ideas.",
+        });
+
+        const output = parseJSON(spawnerResult.text);
+
+        const argA: Argument = {
+          personaId: persona.id,
+          ideaId: ideas[0].id,
+          stance: output.analysisA?.stance || "neutral",
+          forPoints: output.analysisA?.forPoints || [],
+          againstPoints: output.analysisA?.againstPoints || [],
+          thoughtProcess: `[Comparison Preference: ${output.preference}] ${output.thoughtProcess || ""}`,
+        };
+
+        const argB: Argument = {
+          personaId: persona.id,
+          ideaId: ideas[1].id,
+          stance: output.analysisB?.stance || "neutral",
+          forPoints: output.analysisB?.forPoints || [],
+          againstPoints: output.analysisB?.againstPoints || [],
+          thoughtProcess: `[Comparison Preference: ${output.preference}] ${output.thoughtProcess || ""}`,
+        };
+
+        return [argA, argB];
       });
 
-      const output = parseJSON(spawnerResult.text);
+      const results = await Promise.all(argumentPromises);
+      argumentsList = results.flat();
+    } else {
+      const argumentPromises = personas.map(async (persona) => {
+        const spawnerResult = await generateText({
+          model: keywords.chat(MODELS.SPAWNER),
+          system: SYSTEM_PROMPTS.SPAWNER(ideas[0], persona),
+          prompt: "Critique this idea.",
+        });
 
-      return {
-        personaId: persona.id,
-        ideaId: mainIdea.id,
-        stance: output.stance || "neutral",
-        forPoints: output.forPoints || [],
-        againstPoints: output.againstPoints || [],
-        thoughtProcess: output.thoughtProcess || "No thoughts provided.",
-      } as Argument;
-    });
+        const output = parseJSON(spawnerResult.text);
 
-    const argumentsList = await Promise.all(argumentPromises);
+        return {
+          personaId: persona.id,
+          ideaId: ideas[0].id,
+          stance: output.stance || "neutral",
+          forPoints: output.forPoints || [],
+          againstPoints: output.againstPoints || [],
+          thoughtProcess: output.thoughtProcess || "No thoughts provided.",
+        } as Argument;
+      });
+
+      argumentsList = await Promise.all(argumentPromises);
+    }
 
     return {
       runId: crypto.randomUUID(),

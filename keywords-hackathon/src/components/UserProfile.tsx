@@ -11,36 +11,83 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Lightbulb, LogOut, User as UserIcon } from "lucide-react";
+import { Lightbulb, LogOut, User as UserIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+interface IdeaWithRun {
+  id: string;
+  title: string;
+  created_at: string;
+  simulations: { id: string }[];
+}
 
 export function UserProfile() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ideas, setIdeas] = useState<IdeaWithRun[]>([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
       setLoading(false);
+
+      if (user) {
+        fetchIdeas(user.id);
+      }
     };
 
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchIdeas(session.user.id);
+      } else {
+        setIdeas([]);
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  const fetchIdeas = async (userId: string) => {
+    setIdeasLoading(true);
+    const { data, error } = await supabase
+      .from("ideas")
+      .select(
+        `
+        id,
+        title,
+        created_at,
+        simulations (
+          id
+        )
+      `
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setIdeas(data as unknown as IdeaWithRun[]);
+    }
+    setIdeasLoading(false);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -52,7 +99,7 @@ export function UserProfile() {
   }
 
   if (!user) {
-    return null; // Or a "Sign In" button if preferred
+    return null;
   }
 
   // Get initials or use a default
@@ -88,10 +135,40 @@ export function UserProfile() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem disabled>
-            <Lightbulb className="mr-2 h-4 w-4" />
-            <span>Ideas</span>
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Lightbulb className="mr-2 h-4 w-4" />
+              <span>Ideas</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-56 max-h-[300px] overflow-y-auto">
+              {ideasLoading ? (
+                <DropdownMenuItem disabled>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Loading...</span>
+                </DropdownMenuItem>
+              ) : ideas.length === 0 ? (
+                <DropdownMenuItem disabled>
+                  <span>No ideas yet</span>
+                </DropdownMenuItem>
+              ) : (
+                ideas.map((idea) => (
+                  <Link
+                    key={idea.id}
+                    href={
+                      idea.simulations?.[0]?.id
+                        ? `/run/${idea.simulations[0].id}`
+                        : "#"
+                    }
+                    passHref
+                  >
+                    <DropdownMenuItem className="cursor-pointer">
+                      <span className="truncate">{idea.title}</span>
+                    </DropdownMenuItem>
+                  </Link>
+                ))
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>

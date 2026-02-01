@@ -7,13 +7,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, X, Send, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface DirectorChatProps {
   context: string;
+  variant?: "floating" | "embedded";
 }
 
-export function DirectorChat({ context }: DirectorChatProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function DirectorChat({
+  context,
+  variant = "floating",
+}: DirectorChatProps) {
+  const [isOpen, setIsOpen] = useState(variant === "embedded"); // Embedded is always open
   // Use type assertion to handle the SDK version differences
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chatHelpers = useChat({
@@ -45,6 +50,8 @@ export function DirectorChat({ context }: DirectorChatProps) {
 
   // Trigger initial greeting when opened
   useEffect(() => {
+    // For embedded, it's always open, so this runs on mount.
+    // For floating, it runs when isOpen becomes true.
     if (isOpen && messages.length === 0 && !isLoading && append) {
       append({
         role: "system",
@@ -52,7 +59,7 @@ export function DirectorChat({ context }: DirectorChatProps) {
           "Analyze the provided context and introduce yourself as the Director (GPT-5.2). Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise.",
       });
     }
-  }, [isOpen, append, isLoading]); // Only run when isOpen changes to true
+  }, [isOpen, append, isLoading]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +79,99 @@ export function DirectorChat({ context }: DirectorChatProps) {
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
+
+  if (variant === "embedded") {
+    return (
+      <div className="flex flex-col h-full w-full bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl overflow-hidden shadow-sm">
+        {/* Header */}
+        <div className="p-4 border-b border-border/50 bg-primary/5 flex items-center gap-3 shrink-0">
+          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Director (GPT 5.2)</h3>
+            <p className="text-xs text-muted-foreground">Orchestrator Mode</p>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-3 rounded-lg">
+                Error:{" "}
+                {error.message ||
+                  "Failed to connect to AI service. Please check your API configuration."}
+              </div>
+            )}
+            {messages.length === 0 && !error && (
+              <div className="text-center text-xs text-muted-foreground mt-20">
+                <p className="animate-pulse">
+                  Director is analyzing the simulation...
+                </p>
+              </div>
+            )}
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {messages.map((m: any) => (
+              <div
+                key={m.id}
+                className={`flex gap-2 ${
+                  m.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {m.role === "assistant" && (
+                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                  </div>
+                )}
+                <div
+                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                    m.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(m as any).content}
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex gap-2 justify-start">
+                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                </div>
+                <div className="bg-muted text-foreground rounded-lg px-3 py-2 text-sm animate-pulse">
+                  Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={scrollRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Input */}
+        <div className="p-3 border-t border-border/50 bg-background/50 shrink-0">
+          <form onSubmit={onSubmit} className="flex gap-2">
+            <Input
+              value={input}
+              onChange={handleInputChange}
+              placeholder="Ask the Director..."
+              className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={isLoading}
+              className="h-10 w-10 shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

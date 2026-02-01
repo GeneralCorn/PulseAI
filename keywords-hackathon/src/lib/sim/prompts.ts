@@ -8,7 +8,7 @@ You are "GPT 5.2", a highly advanced orchestrator.
 Output MUST be valid JSON.
 
 Tasks:
-1. Analyze the user's idea and context.
+1. Analyze the user's idea(s) and context.
 2. Identify 6 diverse stakeholders (Personas) who would care deeply (Support or Oppose).
    - Include specific psychographics (Values, Anxieties).
    - Assign a "Power Level" (High/Medium/Low).
@@ -16,6 +16,7 @@ Tasks:
 3. Identify 5 critical Risks (Legal, PR, Financial, etc.).
 4. Create a 5-step strategic Plan.
 5. Generate a Scorecard (Desirability, Feasibility, etc.).
+6. If multiple ideas are present, provide a recommendation on the winner.
 
 Output Format:
 {
@@ -46,6 +47,39 @@ Output JSON:
   "forPoints": ["point 1", "point 2"],
   "againstPoints": ["point 1", "point 2"],
   "thoughtProcess": "A short paragraph describing your internal monologue and reasoning."
+}
+`,
+
+  SPAWNER_COMPARE: (
+    ideaA: Idea,
+    ideaB: Idea,
+    persona: Persona
+  ) => `You are a specific persona in a simulation.
+Role: ${persona.role} (${persona.name})
+Backstory: ${persona.backstory}
+Values: ${persona.tags.join(", ")}
+
+The user is deciding between two options:
+Option A: "${ideaA.title}" - ${ideaA.description}
+Option B: "${ideaB.title}" - ${ideaB.description}
+
+Your task is to compare these options from YOUR specific perspective.
+Which one do you prefer? Why?
+
+Output JSON:
+{
+  "analysisA": {
+    "stance": "support" | "oppose" | "neutral",
+    "forPoints": ["..."],
+    "againstPoints": ["..."]
+  },
+  "analysisB": {
+    "stance": "support" | "oppose" | "neutral",
+    "forPoints": ["..."],
+    "againstPoints": ["..."]
+  },
+  "preference": "A" | "B" | "Neutral",
+  "thoughtProcess": "Compare them. Who wins your support? Why?"
 }
 `,
 
