@@ -30,22 +30,32 @@ export function PersonaChatModal({
   persona,
   idea,
 }: PersonaChatModalProps) {
-  // @ts-expect-error - API exists in Vercel AI SDK but TS definitions might be lagging or strict
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
-    useChat({
-      id: "persona-" + persona.id,
-      // @ts-expect-error - api property exists but is missing in type definition
-      api: "/api/chat",
-      body: {
-        type: "persona",
-        persona,
-        idea,
-      },
-      onError: (err) => {
-        console.error("Chat error:", err);
-        // Prevent modal from closing on error
-      },
-    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chatHelpers = useChat({
+    id: "persona-" + persona.id,
+    // @ts-expect-error - api property exists but is missing in type definition
+    api: "/api/chat",
+    body: {
+      type: "persona",
+      persona,
+      idea,
+    },
+    onError: (err) => {
+      console.error("Chat error:", err);
+      // Prevent modal from closing on error
+    },
+  }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    append,
+    setInput,
+    isLoading,
+    error,
+  } = chatHelpers || ({} as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +66,15 @@ export function PersonaChatModal({
   }, [messages]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // Only close if explicitly requested and not loading
+        if (!open && !isLoading) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -89,7 +107,8 @@ export function PersonaChatModal({
                 Start a conversation with {persona.name}...
               </div>
             )}
-            {messages.map((m) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {messages.map((m: any) => (
               <div
                 key={m.id}
                 className={`flex gap-3 ${
@@ -136,14 +155,22 @@ export function PersonaChatModal({
 
         <DialogFooter>
           <form
-            onSubmit={handleSubmit}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (handleSubmit) {
+                handleSubmit(e);
+              } else if (append && input.trim()) {
+                append({ role: "user", content: input });
+                if (setInput) setInput("");
+              }
+            }}
             className="flex w-full items-center space-x-2"
           >
             <Input
               value={input}
               onChange={handleInputChange}
               placeholder="Type your message..."
-              className="bg-zinc-900 border-zinc-700 focus-visible:ring-primary"
+              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 focus-visible:ring-primary"
             />
             <Button type="submit" size="icon" disabled={isLoading}>
               <Send className="h-4 w-4" />

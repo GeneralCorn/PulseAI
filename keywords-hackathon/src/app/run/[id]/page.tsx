@@ -8,6 +8,7 @@ import { DirectorChat } from "@/components/sim/DirectorChat";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { UserProfile } from "@/components/UserProfile";
 
 interface RunPageProps {
   params: Promise<{ id: string }>;
@@ -56,8 +57,11 @@ export default async function RunPage({ params }: RunPageProps) {
             </span>
           </h1>
         </div>
-        <div className="text-sm text-muted-foreground">
-          Running in <strong>{result.mode.toUpperCase()}</strong> mode
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Running in <strong>{result.mode.toUpperCase()}</strong> mode
+          </div>
+          <UserProfile />
         </div>
       </header>
 

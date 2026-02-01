@@ -4,10 +4,9 @@ import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, X, Send, User, Sparkles } from "lucide-react";
+import { MessageSquare, X, Send, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface DirectorChatProps {
   context: string;
@@ -15,22 +14,58 @@ interface DirectorChatProps {
 
 export function DirectorChat({ context }: DirectorChatProps) {
   const [isOpen, setIsOpen] = useState(false);
-  // @ts-expect-error - API exists in Vercel AI SDK but TS definitions might be lagging or strict
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } =
-    useChat({
-      id: "director",
-      // @ts-expect-error - api property exists but is missing in type definition
-      api: "/api/chat",
-      body: {
-        type: "director",
-        context,
-      },
-      onError: (err) => {
-        console.error("Director chat error:", err);
-      },
-    });
+  // Use type assertion to handle the SDK version differences
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chatHelpers = useChat({
+    id: "director",
+    // @ts-expect-error - api property exists but is missing in type definition
+    api: "/api/chat",
+    body: {
+      type: "director",
+      context,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (err: any) => {
+      console.error("Director chat error:", err);
+    },
+  }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    append,
+    setInput,
+    isLoading,
+    error,
+  } = chatHelpers || ({} as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Trigger initial greeting when opened
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && !isLoading && append) {
+      append({
+        role: "system",
+        content:
+          "Analyze the provided context and introduce yourself as the Director (GPT-5.2). Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise.",
+      });
+    }
+  }, [isOpen, append, isLoading]); // Only run when isOpen changes to true
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    if (handleSubmit) {
+      handleSubmit(e);
+    } else if (append) {
+      // Fallback if handleSubmit is missing
+      append({ role: "user", content: input });
+      if (setInput) setInput("");
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -94,13 +129,13 @@ export function DirectorChat({ context }: DirectorChatProps) {
                 )}
                 {messages.length === 0 && !error && (
                   <div className="text-center text-xs text-muted-foreground mt-20">
-                    <p>
-                      I am the Director. How can I clarify the simulation
-                      results?
+                    <p className="animate-pulse">
+                      Director is analyzing the simulation...
                     </p>
                   </div>
                 )}
-                {messages.map((m) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {messages.map((m: any) => (
                   <div
                     key={m.id}
                     className={`flex gap-2 ${
@@ -119,7 +154,8 @@ export function DirectorChat({ context }: DirectorChatProps) {
                           : "bg-zinc-800 text-zinc-100"
                       }`}
                     >
-                      {(m as { content: string }).content}
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                      {(m as any).content}
                     </div>
                   </div>
                 ))}
@@ -139,12 +175,12 @@ export function DirectorChat({ context }: DirectorChatProps) {
 
             {/* Input */}
             <div className="p-3 border-t border-primary/10 bg-zinc-900/50">
-              <form onSubmit={handleSubmit} className="flex gap-2">
+              <form onSubmit={onSubmit} className="flex gap-2">
                 <Input
                   value={input}
                   onChange={handleInputChange}
                   placeholder="Ask the Director..."
-                  className="bg-zinc-950 border-zinc-800 focus-visible:ring-primary h-10"
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 focus-visible:ring-primary h-10"
                 />
                 <Button
                   type="submit"

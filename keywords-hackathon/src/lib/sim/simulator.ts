@@ -1,7 +1,8 @@
-import { SimulationResult, Idea, Argument, Persona } from './types';
-import { generateMockResult } from './mockData';
-import { keywords, MODELS } from '@/lib/keywords';
-import { SYSTEM_PROMPTS } from './prompts';
+import { SimulationResult, Idea, Argument, Persona } from "./types";
+import { generateMockResult } from "./mockData";
+import { keywords, MODELS } from "@/lib/keywords";
+import { SYSTEM_PROMPTS } from "./prompts";
+import { generateText } from "ai";
 
 interface SimulationOptions {
   useMock?: boolean;
@@ -13,17 +14,17 @@ interface SimulationOptions {
 const parseJSON = (text: string) => {
   try {
     // Remove markdown code blocks if present
-    const cleanText = text.replace(/```json\n?|\n?```/g, '');
+    const cleanText = text.replace(/```json\n?|\n?```/g, "");
     return JSON.parse(cleanText);
   } catch (e) {
-    console.error('Failed to parse LLM JSON:', text);
-    throw new Error('Invalid JSON response from AI');
+    console.error("Failed to parse LLM JSON:", text);
+    throw new Error("Invalid JSON response from AI");
   }
 };
 
 export async function runSimulation(
   ideas: Idea[],
-  mode: 'single' | 'compare',
+  mode: "single" | "compare",
   options: SimulationOptions = {}
 ): Promise<SimulationResult> {
   const { useMock = false } = options;
@@ -40,17 +41,14 @@ export async function runSimulation(
     const mainIdea = ideas[0]; // MVP supports single idea mainly
 
     // --- Step 1: Director (Orchestrator) ---
-    console.log('[Director] Analyzing idea:', mainIdea.title);
-    const directorCompletion = await keywords.chat.completions.create({
-      model: MODELS.DIRECTOR,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPTS.DIRECTOR },
-        { role: 'user', content: `Idea: ${mainIdea.title}\nContext: ${mainIdea.description}\nMode: ${mode}` }
-      ],
-      response_format: { type: 'json_object' }
+    console.log("[Director] Analyzing idea:", mainIdea.title);
+    const directorResult = await generateText({
+      model: keywords(MODELS.DIRECTOR),
+      system: SYSTEM_PROMPTS.DIRECTOR,
+      prompt: `Idea: ${mainIdea.title}\nContext: ${mainIdea.description}\nMode: ${mode}`,
     });
 
-    const directorOutput = parseJSON(directorCompletion.choices[0].message.content || '{}');
+    const directorOutput = parseJSON(directorResult.text);
     const personas: Persona[] = directorOutput.personas || [];
     const risks = directorOutput.risks || [];
     const plan = directorOutput.plan || [];
@@ -59,26 +57,23 @@ export async function runSimulation(
 
     // --- Step 2: Spawners (Personas) ---
     console.log(`[Spawners] Spawning ${personas.length} personas...`);
-    
+
     const argumentPromises = personas.map(async (persona) => {
-      const spawnerCompletion = await keywords.chat.completions.create({
-        model: MODELS.SPAWNER,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPTS.SPAWNER(mainIdea, persona) },
-          { role: 'user', content: 'Critique this idea.' }
-        ],
-        response_format: { type: 'json_object' }
+      const spawnerResult = await generateText({
+        model: keywords(MODELS.SPAWNER),
+        system: SYSTEM_PROMPTS.SPAWNER(mainIdea, persona),
+        prompt: "Critique this idea.",
       });
 
-      const output = parseJSON(spawnerCompletion.choices[0].message.content || '{}');
-      
+      const output = parseJSON(spawnerResult.text);
+
       return {
         personaId: persona.id,
         ideaId: mainIdea.id,
-        stance: output.stance || 'neutral',
+        stance: output.stance || "neutral",
         forPoints: output.forPoints || [],
         againstPoints: output.againstPoints || [],
-        thoughtProcess: output.thoughtProcess || 'No thoughts provided.'
+        thoughtProcess: output.thoughtProcess || "No thoughts provided.",
       } as Argument;
     });
 
@@ -95,11 +90,10 @@ export async function runSimulation(
       risks,
       scorecard,
       recommendation,
-      plan
+      plan,
     };
-
   } catch (error) {
-    console.error('Simulation failed:', error);
+    console.error("Simulation failed:", error);
     // Fallback to mock if AI fails
     return generateMockResult(ideas[0]);
   }

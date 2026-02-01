@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Loader2 } from 'lucide-react';
+import { UserProfile } from '@/components/UserProfile';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -31,7 +32,10 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <UserProfile />
+      </div>
       <Card className="w-full max-w-lg border-border/50 bg-card/50 backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary">Synthetic Pulse</CardTitle>
