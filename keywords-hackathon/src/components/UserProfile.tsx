@@ -16,7 +16,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Lightbulb, LogOut, Loader2 } from "lucide-react";
+import { Lightbulb, LogOut, Loader2, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -24,6 +24,7 @@ interface IdeaWithRun {
   id: string;
   title: string;
   created_at: string;
+  credit_usage: number;
   simulations: { id: string }[];
 }
 
@@ -75,6 +76,7 @@ export function UserProfile() {
         id,
         title,
         created_at,
+        credit_usage,
         simulations (
           id
         )
@@ -112,6 +114,9 @@ export function UserProfile() {
         .slice(0, 2)
     : user.email?.slice(0, 2).toUpperCase() || "U";
 
+  // Calculate total credits used
+  const totalCredits = ideas.reduce((sum, idea) => sum + (idea.credit_usage || 0), 0);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -140,7 +145,7 @@ export function UserProfile() {
               <Lightbulb className="mr-2 h-4 w-4" />
               <span>Ideas</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-56 max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="w-56">
               {ideasLoading ? (
                 <DropdownMenuItem disabled>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -151,25 +156,50 @@ export function UserProfile() {
                   <span>No ideas yet</span>
                 </DropdownMenuItem>
               ) : (
-                ideas.map((idea) => (
-                  <Link
-                    key={idea.id}
-                    href={
-                      idea.simulations?.[0]?.id
-                        ? `/run/${idea.simulations[0].id}`
-                        : "#"
-                    }
-                    passHref
-                  >
-                    <DropdownMenuItem className="cursor-pointer">
-                      <span className="truncate">{idea.title}</span>
-                    </DropdownMenuItem>
-                  </Link>
-                ))
+                <>
+                  {ideas.slice(0, 3).map((idea) => (
+                    <Link
+                      key={idea.id}
+                      href={
+                        idea.simulations?.[0]?.id
+                          ? `/run/${idea.simulations[0].id}`
+                          : "#"
+                      }
+                      passHref
+                    >
+                      <DropdownMenuItem className="cursor-pointer flex items-center justify-between gap-2">
+                        <span className="truncate flex-1">{idea.title}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ${(idea.credit_usage || 0).toFixed(3)}
+                        </span>
+                      </DropdownMenuItem>
+                    </Link>
+                  ))}
+                  {ideas.length > 3 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <Link href="/ideas" passHref>
+                        <DropdownMenuItem className="cursor-pointer">
+                          <LayoutGrid className="mr-2 h-4 w-4" />
+                          <span>Show all ({ideas.length})</span>
+                        </DropdownMenuItem>
+                      </Link>
+                    </>
+                  )}
+                </>
               )}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <div className="px-2 py-2">
+          <div className="text-xs text-muted-foreground">
+            Total Credits Used
+          </div>
+          <div className="text-sm font-semibold text-primary">
+            ${totalCredits.toFixed(4)}
+          </div>
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />

@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, Zap, ShieldAlert } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { LandingBackground } from "@/components/landing/LandingBackground";
 import { Header } from "@/components/landing/Header";
@@ -20,7 +19,6 @@ import { SimulationResult } from "@/lib/sim/types";
 export default function LandingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("quick");
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [simulationResult, setSimulationResult] =
     useState<SimulationResult | null>(null);
@@ -29,10 +27,8 @@ export default function LandingPage() {
     event.preventDefault();
     setLoading(true);
     const formData = new FormData(event.currentTarget);
-    // Append mode to formData if not present
-    if (!formData.get("mode")) {
-      formData.append("mode", mode);
-    }
+    // Always use war_room mode
+    formData.append("mode", "war_room");
     // Append compare mode flag
     formData.append("is_compare", isCompareMode ? "true" : "false");
 
@@ -225,52 +221,6 @@ export default function LandingPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Mode Selection */}
-                <div className="pt-4">
-                  <RadioGroup
-                    defaultValue="quick"
-                    name="mode"
-                    className="grid grid-cols-2 gap-4"
-                    onValueChange={setMode}
-                  >
-                    <div className="relative">
-                      <RadioGroupItem
-                        value="quick"
-                        id="quick"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="quick"
-                        className="flex flex-col p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all h-full gap-2 group"
-                      >
-                        <Zap className="h-6 w-6 text-yellow-500 mb-1 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold">Quick Ideation</span>
-                        <span className="text-xs text-muted-foreground group-hover:text-muted-foreground/80">
-                          Lite simulation (3 Personas)
-                        </span>
-                      </Label>
-                    </div>
-
-                    <div className="relative">
-                      <RadioGroupItem
-                        value="war_room"
-                        id="war_room"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="war_room"
-                        className="flex flex-col p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all h-full gap-2 group"
-                      >
-                        <ShieldAlert className="h-6 w-6 text-red-500 mb-1 group-hover:scale-110 transition-transform" />
-                        <span className="font-semibold">War Room</span>
-                        <span className="text-xs text-muted-foreground group-hover:text-muted-foreground/80">
-                          Full AI swarm (6 Personas + Deep Logic)
-                        </span>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
                 <Button
                   type="submit"
                   className="w-full h-14 text-lg font-medium bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -279,14 +229,8 @@ export default function LandingPage() {
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      {isCompareMode
-                        ? "Running A/B Simulation..."
-                        : mode === "war_room"
-                          ? "Entering War Room..."
-                          : "Initializing Simulation..."}
+                      Running Simulation...
                     </div>
-                  ) : isCompareMode ? (
-                    "Compare Strategies"
                   ) : (
                     "Run Simulation"
                   )}

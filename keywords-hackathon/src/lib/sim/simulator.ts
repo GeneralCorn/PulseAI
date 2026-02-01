@@ -1,145 +1,259 @@
-import { SimulationResult, Idea, Argument, Persona } from "./types";
-import { generateMockResult } from "./mockData";
-import { keywords, MODELS } from "@/lib/keywords";
-import { SYSTEM_PROMPTS } from "./prompts";
-import { generateText } from "ai";
+import {
+  SimulationResult,
+  Idea,
+  Persona,
+  PersonaResponse,
+  DecisionTrace,
+  Risk,
+  Scorecard,
+  Recommendation,
+  PlanItem,
+  SimulationOptions,
+  Demographics,
+  PersonaProfile,
+} from "./types";
+import {
+  ensurePersonaStored,
+  ensurePersonaProfile,
+  runPersonaOnVariant,
+  buildDecisionTrace,
+} from "@/lib/personaAgent";
+import {
+  createServerSupabaseClient,
+  insertExperiment,
+  insertVariant,
+} from "@/lib/supabase";
+import { callPrompt, resetUsageTracker, getUsageStats } from "@/lib/keywordsClient";
+import { parseJSONSafe } from "@/lib/schemas";
 
-interface SimulationOptions {
-  useMock?: boolean;
-  personaCount?: number;
-  intensityMode?: "war_room" | "quick";
+// ============================================================================
+// Director Prompt ID
+// ============================================================================
+function getPromptDirectorId(): string {
+  return process.env.PROMPT_SIMULATION_DIRECTOR_ID || "local:simulation_director";
 }
 
-// Helper to safe parse JSON from LLM
-const parseJSON = (text: string) => {
-  try {
-    // Remove markdown code blocks if present
-    const cleanText = text.replace(/```json\n?|\n?```/g, "");
-    return JSON.parse(cleanText);
-  } catch (e) {
-    console.error("Failed to parse LLM JSON:", text);
-    throw new Error("Invalid JSON response from AI");
-  }
-};
+// ============================================================================
+// Director Output Schema
+// ============================================================================
+interface DirectorOutput {
+  personas: Array<{
+    demographics: Demographics;
+  }>;
+  risks: Risk[];
+  plan: PlanItem[];
+  scorecard: Scorecard;
+  recommendation: Recommendation;
+}
 
+// ============================================================================
+// Main Simulation Function
+// ============================================================================
 export async function runSimulation(
   ideas: Idea[],
   mode: "single" | "compare",
   options: SimulationOptions = {}
 ): Promise<SimulationResult> {
-  const { useMock = false } = options;
+  const { personaCount = 4 } = options;
+  const db = createServerSupabaseClient();
 
-  if (useMock) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(generateMockResult(ideas[0]));
-      }, 2000);
-    });
-  }
+  // Reset usage tracker at the start of each simulation
+  resetUsageTracker();
 
   try {
-    const mainIdea = ideas[0]; // MVP supports single idea mainly
+    const mainIdea = ideas[0];
+    const userPrompt = `Evaluate the idea: ${mainIdea.title} - ${mainIdea.description}`;
 
-    // --- Step 1: Director (Orchestrator) ---
-    console.log(`[Director] Analyzing ${ideas.length} idea(s) in ${mode} mode...`);
+    // --- Step 1: Create Experiment ---
+    console.log(`[Simulator] Creating experiment...`);
+    const experiment = await insertExperiment(db, userPrompt);
+    const experimentId = experiment.experiment_id;
+    console.log(`[Simulator] Experiment created: ${experimentId}`);
 
-    let directorPrompt = "";
+    // --- Step 2: Create Variant ---
+    const stimulus = {
+      title: mainIdea.title,
+      description: mainIdea.description,
+      ...(mode === "compare" && ideas[1]
+        ? {
+            compare_title: ideas[1].title,
+            compare_description: ideas[1].description,
+          }
+        : {}),
+    };
+    const variant = await insertVariant(db, experimentId, "main", stimulus);
+    console.log(`[Simulator] Variant created: ${variant.variant_id}`);
+
+    // --- Step 3: Call Director to get personas demographics, risks, plan, etc. ---
+    console.log(`[Simulator] Calling Director prompt...`);
+    const directorStartTime = Date.now();
+
+    let directorPromptContent = "";
     if (mode === "compare" && ideas.length >= 2) {
-      directorPrompt = `Mode: COMPARE\nIdea A: ${ideas[0].title} - ${ideas[0].description}\nIdea B: ${ideas[1].title} - ${ideas[1].description}`;
+      directorPromptContent = `Mode: COMPARE\nIdea A: ${ideas[0].title} - ${ideas[0].description}\nIdea B: ${ideas[1].title} - ${ideas[1].description}\nPersona Count: ${personaCount}`;
     } else {
-      directorPrompt = `Idea: ${ideas[0].title}\nContext: ${ideas[0].description}\nMode: SINGLE`;
+      directorPromptContent = `Idea: ${ideas[0].title}\nContext: ${ideas[0].description}\nMode: SINGLE\nPersona Count: ${personaCount}`;
     }
 
-    const directorResult = await generateText({
-      model: keywords.chat(MODELS.DIRECTOR),
-      system: SYSTEM_PROMPTS.DIRECTOR,
-      prompt: directorPrompt,
+    const directorResult = await callPrompt(getPromptDirectorId(), {
+      idea_context: directorPromptContent,
+      persona_count: personaCount,
     });
 
-    const directorOutput = parseJSON(directorResult.text);
-    const personas: Persona[] = directorOutput.personas || [];
+    const directorDuration = Date.now() - directorStartTime;
+    console.log(`[Simulator] Director completed in ${directorDuration}ms`);
+
+    const directorOutput = parseJSONSafe(directorResult.content) as DirectorOutput | null;
+    if (!directorOutput) {
+      throw new Error("Failed to parse Director output");
+    }
+
+    const personaDemographics = directorOutput.personas || [];
     const risks = directorOutput.risks || [];
     const plan = directorOutput.plan || [];
-    const scorecard = directorOutput.scorecard || {};
-    const recommendation = directorOutput.recommendation || {};
+    const scorecard = directorOutput.scorecard || {
+      desirability: 0,
+      feasibility: 0,
+      clarity: 0,
+      differentiation: 0,
+      justification: "",
+    };
+    const recommendation = directorOutput.recommendation || { summary: "" };
 
-    // --- Step 2: Spawners (Personas) ---
-    console.log(`[Spawners] Spawning ${personas.length} personas...`);
+    // --- Step 4: Process each persona ---
+    console.log(`[Simulator] Processing ${personaDemographics.length} personas...`);
+    const personas: Persona[] = [];
+    const responses: PersonaResponse[] = [];
+    const decisionTraces: DecisionTrace[] = [];
 
-    let argumentsList: Argument[] = [];
+    for (let i = 0; i < personaDemographics.length; i++) {
+      const { demographics } = personaDemographics[i];
+      console.log(
+        `[Simulator] Processing persona ${i + 1}/${personaDemographics.length}: ${demographics.name}`
+      );
 
-    if (mode === "compare" && ideas.length >= 2) {
-      const argumentPromises = personas.map(async (persona) => {
-        const spawnerResult = await generateText({
-          model: keywords.chat(MODELS.SPAWNER),
-          system: SYSTEM_PROMPTS.SPAWNER_COMPARE(ideas[0], ideas[1], persona),
-          prompt: "Compare these ideas.",
+      try {
+        // Store persona
+        const personaId = await ensurePersonaStored(demographics, db);
+        console.log(`[Simulator] Persona stored: ${personaId}`);
+
+        // Generate profile
+        const profile = await ensurePersonaProfile(personaId, demographics, db);
+        if (!profile) {
+          console.error(`[Simulator] Failed to generate profile for ${demographics.name}`);
+          continue;
+        }
+
+        // Add to personas list
+        personas.push({
+          persona_id: personaId,
+          demographics: demographics as Demographics,
+          profile: profile as PersonaProfile,
         });
 
-        const output = parseJSON(spawnerResult.text);
+        // Generate response
+        const responseRow = await runPersonaOnVariant(
+          {
+            experiment_id: experimentId,
+            variant_id: variant.variant_id,
+            persona_id: personaId,
+            demographics,
+            profile,
+            user_prompt: userPrompt,
+            questions: [],
+            stimulus,
+          },
+          db
+        );
 
-        const argA: Argument = {
-          personaId: persona.id,
-          ideaId: ideas[0].id,
-          stance: output.analysisA?.stance || "neutral",
-          forPoints: output.analysisA?.forPoints || [],
-          againstPoints: output.analysisA?.againstPoints || [],
-          thoughtProcess: `[Comparison Preference: ${output.preference}] ${output.thoughtProcess || ""}`,
+        if (!responseRow) {
+          console.error(`[Simulator] Failed to generate response for ${demographics.name}`);
+          continue;
+        }
+
+        // Convert ResponseRow to PersonaResponse
+        const personaResponse: PersonaResponse = {
+          response_id: responseRow.response_id,
+          persona_id: personaId,
+          scores: {
+            purchase_intent: responseRow.purchase_intent,
+            trust: responseRow.trust,
+            clarity: responseRow.clarity,
+            differentiation: responseRow.differentiation,
+          },
+          verdict: {
+            would_try: responseRow.would_try,
+            would_pay: responseRow.would_pay,
+          },
+          free_text: responseRow.free_text,
         };
+        responses.push(personaResponse);
 
-        const argB: Argument = {
-          personaId: persona.id,
-          ideaId: ideas[1].id,
-          stance: output.analysisB?.stance || "neutral",
-          forPoints: output.analysisB?.forPoints || [],
-          againstPoints: output.analysisB?.againstPoints || [],
-          thoughtProcess: `[Comparison Preference: ${output.preference}] ${output.thoughtProcess || ""}`,
-        };
+        // Build decision trace
+        const trace = await buildDecisionTrace(
+          {
+            response_id: responseRow.response_id,
+            experiment_id: experimentId,
+            persona_id: personaId,
+            demographics,
+            profile,
+            stimulus,
+            response: {
+              scores: personaResponse.scores,
+              verdict: personaResponse.verdict,
+              free_text: personaResponse.free_text,
+              top_objections:
+                (responseRow.extra as { top_objections?: string[] })?.top_objections || [],
+              what_would_change_my_mind:
+                (responseRow.extra as { what_would_change_my_mind?: string[] })
+                  ?.what_would_change_my_mind || [],
+              confidence: (responseRow.extra as { confidence?: number })?.confidence || 0.5,
+              uncertainty_notes:
+                (responseRow.extra as { uncertainty_notes?: string[] })?.uncertainty_notes || [],
+            },
+          },
+          db
+        );
 
-        return [argA, argB];
-      });
-
-      const results = await Promise.all(argumentPromises);
-      argumentsList = results.flat();
-    } else {
-      const argumentPromises = personas.map(async (persona) => {
-        const spawnerResult = await generateText({
-          model: keywords.chat(MODELS.SPAWNER),
-          system: SYSTEM_PROMPTS.SPAWNER(ideas[0], persona),
-          prompt: "Critique this idea.",
-        });
-
-        const output = parseJSON(spawnerResult.text);
-
-        return {
-          personaId: persona.id,
-          ideaId: ideas[0].id,
-          stance: output.stance || "neutral",
-          forPoints: output.forPoints || [],
-          againstPoints: output.againstPoints || [],
-          thoughtProcess: output.thoughtProcess || "No thoughts provided.",
-        } as Argument;
-      });
-
-      argumentsList = await Promise.all(argumentPromises);
+        if (trace) {
+          decisionTraces.push({
+            response_id: responseRow.response_id,
+            ...trace,
+          });
+        }
+      } catch (err) {
+        console.error(`[Simulator] Error processing persona ${demographics.name}:`, err);
+      }
     }
+
+    // Get final usage stats for credit calculation
+    const usageStats = getUsageStats();
+    const creditUsage = usageStats.totalCost;
+
+    console.log(
+      `[Simulator] Completed: ${personas.length} personas, ${responses.length} responses, ${decisionTraces.length} traces`
+    );
+    console.log(
+      `[Simulator] Total credit usage: $${creditUsage.toFixed(6)} (${usageStats.callCount} API calls)`
+    );
 
     return {
       runId: crypto.randomUUID(),
+      experimentId,
       createdAt: new Date().toISOString(),
-      seed: Date.now(),
       mode,
       ideas,
       personas,
-      arguments: argumentsList,
+      responses,
+      decisionTraces,
       risks,
       scorecard,
       recommendation,
       plan,
+      creditUsage,
     };
   } catch (error) {
-    console.error("Simulation failed:", error);
-    // Fallback to mock if AI fails
-    return generateMockResult(ideas[0]);
+    console.error("[Simulator] Simulation failed:", error);
+    throw error;
   }
 }

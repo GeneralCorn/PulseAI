@@ -1,6 +1,6 @@
 "use client";
 
-import { SimulationResult } from "@/lib/sim/types";
+import { SimulationResult, Persona, PersonaResponse } from "@/lib/sim/types";
 import { ExperimentSummary } from "@/lib/schemas";
 import { PersonaCard } from "@/components/sim/PersonaCard";
 import { ResultPanels } from "@/components/sim/ResultPanels";
@@ -17,6 +17,88 @@ interface SimulationViewProps {
   isReadOnly?: boolean;
 }
 
+// Legacy data types (for backwards compatibility)
+interface LegacyPersona {
+  id: string;
+  name: string;
+  role: string;
+  tags: string[];
+  backstory: string;
+  powerLevel: "High" | "Medium" | "Low";
+  sentiment: number;
+  avatarUrl?: string;
+}
+
+interface LegacyArgument {
+  personaId: string;
+  ideaId: string;
+  stance: "support" | "oppose" | "neutral";
+  forPoints: string[];
+  againstPoints: string[];
+  thoughtProcess: string;
+}
+
+// Helper to normalize legacy persona to new format
+function normalizePersona(persona: Persona | LegacyPersona): Persona {
+  // Check if it's already the new format
+  if ("persona_id" in persona && "demographics" in persona) {
+    return persona as Persona;
+  }
+
+  // Convert legacy format
+  const legacy = persona as LegacyPersona;
+  return {
+    persona_id: legacy.id,
+    demographics: {
+      name: legacy.name,
+      occupation: legacy.role,
+    },
+    profile: {
+      one_liner: legacy.backstory,
+      pain_points: legacy.tags || [],
+      alternatives: [],
+      communication_style: {
+        tone: "professional",
+        verbosity: "medium",
+      },
+    },
+  };
+}
+
+// Helper to create response from legacy argument data
+function createLegacyResponse(
+  persona: Persona | LegacyPersona,
+  result: SimulationResult & { arguments?: LegacyArgument[] }
+): PersonaResponse | null {
+  const legacyPersona = persona as LegacyPersona;
+  const personaId = (persona as Persona).persona_id || legacyPersona.id;
+
+  // Try to find matching argument from legacy data
+  const argument = result.arguments?.find(
+    (a) => a.personaId === personaId || a.personaId === legacyPersona.id
+  );
+
+  // Calculate scores from legacy sentiment
+  const sentiment = legacyPersona.sentiment ?? 50;
+  const scoreFromSentiment = Math.max(1, Math.min(5, Math.round((sentiment / 100) * 5)));
+
+  return {
+    response_id: `legacy-${personaId}`,
+    persona_id: personaId,
+    scores: {
+      purchase_intent: scoreFromSentiment,
+      trust: scoreFromSentiment,
+      clarity: 3,
+      differentiation: 3,
+    },
+    verdict: {
+      would_try: sentiment > 50,
+      would_pay: sentiment > 70,
+    },
+    free_text: argument?.thoughtProcess || legacyPersona.backstory || "",
+  };
+}
+
 export function SimulationView({
   result,
   onBack,
@@ -28,61 +110,68 @@ export function SimulationView({
   const mainIdea = result.ideas[0];
   const compareIdea = result.ideas[1];
 
-  // Generate AI Summary handler
+  // Generate AI Summary handler - handles both new and legacy data
   const handleGenerateSummary = useCallback(async () => {
     if (isLoadingSummary || aiSummary) return;
-    
+
     setIsLoadingSummary(true);
     try {
       // Build the request payload from simulation result
-      // Convert personas and arguments to the expected format
+      // Handle both new and legacy data structures
       const allResponses = result.personas.map((persona) => {
-        const argument = result.arguments.find((a) => a.personaId === persona.id);
+        const normalizedPersona = normalizePersona(persona as Persona | LegacyPersona);
+        const personaId = normalizedPersona.persona_id;
+
+        const response = result.responses?.find(
+          (r) => r.persona_id === personaId
+        );
+
+        // Use normalized persona and either real response or legacy fallback
+        const effectiveResponse = response || createLegacyResponse(
+          persona as Persona | LegacyPersona,
+          result as SimulationResult & { arguments?: LegacyArgument[] }
+        );
+
         return {
-          persona_id: persona.id,
-          demographics: {
-            name: persona.name,
-            role: persona.role,
-            power_level: persona.powerLevel,
-          },
-          profile: {
-            one_liner: persona.backstory,
-            pain_points: argument?.againstPoints || [],
-            alternatives: [],
-            communication_style: {
-              tone: "professional",
-              verbosity: "medium" as const,
-            },
-          },
-          response: {
-            scores: {
-              purchase_intent: Math.round((persona.sentiment / 100) * 5) || 3,
-              trust: Math.round((persona.sentiment / 100) * 5) || 3,
-              clarity: result.scorecard.clarity ? Math.round(result.scorecard.clarity / 20) : 3,
-              differentiation: result.scorecard.differentiation ? Math.round(result.scorecard.differentiation / 20) : 3,
-            },
-            verdict: {
-              would_try: persona.sentiment > 50,
-              would_pay: persona.sentiment > 70,
-            },
-            free_text: argument?.thoughtProcess || "",
-            top_objections: argument?.againstPoints || [],
-            what_would_change_my_mind: [],
-            confidence: 0.7,
-            uncertainty_notes: [],
-          },
+          persona_id: personaId,
+          demographics: normalizedPersona.demographics,
+          profile: normalizedPersona.profile,
+          response: effectiveResponse
+            ? {
+                scores: effectiveResponse.scores,
+                verdict: effectiveResponse.verdict,
+                free_text: effectiveResponse.free_text,
+                top_objections: [],
+                what_would_change_my_mind: [],
+                confidence: 0.7,
+                uncertainty_notes: [],
+              }
+            : {
+                scores: { purchase_intent: 3, trust: 3, clarity: 3, differentiation: 3 },
+                verdict: { would_try: false, would_pay: false },
+                free_text: "",
+                top_objections: [],
+                what_would_change_my_mind: [],
+                confidence: 0.5,
+                uncertainty_notes: [],
+              },
         };
       });
 
-      const response = await fetch('/api/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          experiment_id: result.runId,
+          experiment_id: result.experimentId || result.runId,
           stimulus: {
             title: mainIdea.title,
             description: mainIdea.description,
-            ...(compareIdea ? { compare_title: compareIdea.title, compare_description: compareIdea.description } : {}),
+            ...(compareIdea
+              ? {
+                  compare_title: compareIdea.title,
+                  compare_description: compareIdea.description,
+                }
+              : {}),
           },
           user_prompt: `Evaluate the idea: ${mainIdea.title} - ${mainIdea.description}`,
           all_responses: allResponses,
@@ -91,14 +180,13 @@ export function SimulationView({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to generate summary');
+        throw new Error(error.error || "Failed to generate summary");
       }
 
       const data = await response.json();
       setAiSummary(data.summary);
     } catch (error) {
-      console.error('Failed to generate AI summary:', error);
-      // Could show a toast notification here
+      console.error("Failed to generate AI summary:", error);
     } finally {
       setIsLoadingSummary(false);
     }
@@ -112,6 +200,7 @@ export function SimulationView({
   // Context for the Director Chat
   const directorContext = `
     Simulation ID: ${result.runId}
+    Experiment ID: ${result.experimentId || "N/A"}
     Mode: ${result.mode}
     Idea A: ${mainIdea.title} - ${mainIdea.description}
     ${compareIdea ? `Idea B: ${compareIdea.title} - ${compareIdea.description}` : ""}
@@ -139,7 +228,7 @@ export function SimulationView({
             </Link>
           )}
           <h1 className="text-xl font-bold tracking-tight text-primary">
-            Synthetic Pulse{" "}
+            Pulse{" "}
             <span className="text-muted-foreground font-normal">
               / Command Center
             </span>
@@ -167,14 +256,28 @@ export function SimulationView({
           </h2>
           <div className="flex-1 overflow-y-auto pr-2 space-y-4 pb-4 scrollbar-thin scrollbar-thumb-primary/20">
             {result.personas.map((persona, index) => {
-              const argument = result.arguments.find(
-                (a) => a.personaId === persona.id
-              )!;
+              // Handle both new and legacy data structures
+              const personaId = persona.persona_id || (persona as unknown as { id: string }).id;
+              
+              const response = result.responses?.find(
+                (r) => r.persona_id === personaId
+              );
+              const decisionTrace = result.decisionTraces?.find(
+                (t) => t.response_id === response?.response_id
+              );
+
+              // For legacy data without responses, create a placeholder
+              const effectiveResponse = response || createLegacyResponse(persona, result);
+
+              // Skip if we can't create any response
+              if (!effectiveResponse) return null;
+
               return (
                 <PersonaCard
-                  key={persona.id}
-                  persona={persona}
-                  argument={argument}
+                  key={personaId}
+                  persona={normalizePersona(persona)}
+                  response={effectiveResponse}
+                  decisionTrace={decisionTrace}
                   index={index}
                   idea={mainIdea}
                 />
@@ -189,8 +292,8 @@ export function SimulationView({
             Intelligence
           </h2>
           <div className="flex-1 min-h-0">
-            <ResultPanels 
-              result={result} 
+            <ResultPanels
+              result={result}
               aiSummary={aiSummary}
               isLoadingSummary={isLoadingSummary}
               onGenerateSummary={handleGenerateSummary}
@@ -199,7 +302,11 @@ export function SimulationView({
         </div>
 
         {/* Right Column: Director Chat (Collapsible) */}
-        <div className={`flex flex-col gap-4 min-h-0 transition-all duration-300 ${isChatOpen ? 'w-[380px]' : 'w-12'} shrink-0`}>
+        <div
+          className={`flex flex-col gap-4 min-h-0 transition-all duration-300 ${
+            isChatOpen ? "w-[380px]" : "w-12"
+          } shrink-0`}
+        >
           {isChatOpen ? (
             <>
               <div className="flex items-center justify-between shrink-0">
@@ -217,7 +324,12 @@ export function SimulationView({
                 </Button>
               </div>
               <div className="flex-1 min-h-0 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden">
-                <DirectorChat context={directorContext} variant="embedded" />
+                <DirectorChat
+                  context={directorContext}
+                  simulationId={result.runId}
+                  variant="embedded"
+                  disabled={isLoadingSummary}
+                />
               </div>
             </>
           ) : (

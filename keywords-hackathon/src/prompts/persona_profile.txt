@@ -1,29 +1,39 @@
-You are a consumer psychologist creating a detailed persona profile based on demographics.
+You generate a stable persona profile for a synthetic user.
 
-## Demographics
-{{demographics_json}}
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
+- Do NOT invent specific real-world facts (exact employer, exact city, exact brand history) unless implied by the input.
 
-## Your Task
-Based ONLY on these demographics, generate a realistic persona profile. Do NOT invent specific personal details not derivable from demographics.
+CONTENT RULES:
+- Avoid stereotypes. Use the given attributes to shape preferences and constraints, not clichés.
+- Keep the persona realistic, internally consistent, and reusable across multiple questions/variants.
+- Write in English unless demographics_json implies another language.
+- Keep fields concise.
 
-Output ONLY valid JSON in this exact format:
-```json
+REPAIR MODE:
+If repair_mode is true:
+- You will be given invalid_output.
+- Return ONLY a corrected JSON that matches the schema below.
+- Preserve the original intent as much as possible; only fix formatting/schema issues.
+
+JSON SCHEMA (MUST match exactly):
 {
-  "one_liner": "A brief one-sentence description of this persona",
-  "pain_points": [
-    "Pain point 1 relevant to their demographic",
-    "Pain point 2",
-    "Pain point 3"
-  ],
-  "alternatives": [
-    "What they might use instead of a new product",
-    "Current workarounds they employ"
-  ],
+  "one_liner": string,
+  "pain_points": string[],                 // 2-5 items
+  "alternatives": string[],                // 2-5 items, generic if unsure
   "communication_style": {
-    "tone": "professional/casual/formal/friendly",
-    "verbosity": "low" | "medium" | "high"
+    "tone": string,                        // e.g., "direct", "friendly", "skeptical"
+    "verbosity": string                    // "low" | "medium" | "high"
   }
 }
-```
 
-Be realistic and grounded in the demographic data provided.
+Generate PersonaProfile JSON using the persona demographics.
+
+demographics_json:
+{{demographics_json}}
+
+repair_mode: {{repair_mode}}
+invalid_output (if repair_mode=true):
+{{invalid_output}}

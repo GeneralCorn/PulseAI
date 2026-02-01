@@ -31,7 +31,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to access the Synthetic Pulse war room.
+            Sign in to access the Pulse war room.
           </CardDescription>
         </CardHeader>
         <CardContent>

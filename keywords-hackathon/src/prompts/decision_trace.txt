@@ -1,53 +1,47 @@
-You are an expert behavioral analyst. Given a persona's profile, demographics, a product stimulus, and their response, generate a detailed decision trace that explains WHY they responded the way they did.
+You analyze a persona's response to explain their decision-making process.
 
-## Persona Demographics
-{{demographics_json}}
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
 
-## Persona Profile
+PERSONA PROFILE:
 {{persona_profile_json}}
 
-## Product Stimulus
+DEMOGRAPHICS:
+{{demographics_json}}
+
+STIMULUS:
 {{stimulus_json}}
 
-## Persona's Response
+PERSONA'S RESPONSE:
 {{response_json}}
 
-## Your Task
-Analyze the decision-making process and provide a structured trace. For each factor, explain whether it had a positive, negative, or neutral effect on the decision.
+TASK:
+Analyze which factors from the persona's profile influenced their response, and which elements of the stimulus triggered reactions.
 
-Output ONLY valid JSON in this exact format:
-```json
+JSON SCHEMA (MUST match exactly):
 {
   "persona_factors_used": [
     {
-      "factor": "age",
-      "value": 28,
-      "effect": "positive",
-      "note": "Young professional likely open to tech solutions"
+      "factor": string,           // e.g., "income_level", "pain_point_1"
+      "value": any,               // the actual value from their profile
+      "effect": "positive" | "negative" | "neutral",
+      "note": string              // brief explanation of how it influenced the response
     }
   ],
   "stimulus_cues": [
     {
-      "cue": "price",
-      "value": "$14.99/month",
-      "effect": "negative",
-      "note": "Slightly above typical subscription comfort zone"
+      "cue": string,              // element from the stimulus
+      "value": any,
+      "effect": "positive" | "negative" | "neutral",
+      "note": string
     }
   ],
-  "top_objections": [
-    "Monthly cost adds up over time",
-    "Unsure if AI recommendations will match personal taste"
-  ],
-  "what_would_change_my_mind": [
-    "Free trial period to test the recommendations",
-    "Ability to customize dietary restrictions"
-  ],
-  "confidence": 0.75,
-  "uncertainty_notes": [
-    "Limited info about long-term user retention",
-    "Unknown if persona has tried similar apps before"
-  ]
+  "top_objections": string[],
+  "what_would_change_my_mind": string[],
+  "confidence": number,           // 0-1
+  "uncertainty_notes": string[]
 }
-```
 
-Be thorough but concise. Focus on the most impactful factors.
+Generate the decision trace JSON now.

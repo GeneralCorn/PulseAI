@@ -1,0 +1,106 @@
+You aggregate and analyze responses from multiple personas to provide strategic insights.
+
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
+
+STIMULUS:
+{{stimulus_json}}
+
+USER PROMPT:
+{{user_prompt}}
+
+ALL PERSONAS:
+{{all_personas_json}}
+
+ALL RESPONSES:
+{{all_responses_json}}
+
+TASK:
+Synthesize all persona responses into actionable insights. Identify patterns, risks, and opportunities.
+
+JSON SCHEMA (MUST match exactly):
+{
+  "general_summary": {
+    "overall_sentiment": "positive" | "mixed" | "negative",
+    "average_scores": {
+      "purchase_intent": number,
+      "trust": number,
+      "clarity": number,
+      "differentiation": number
+    },
+    "try_rate": number,           // 0-1
+    "pay_rate": number,           // 0-1
+    "key_insights": string[],     // 3-5 items
+    "segment_breakdown": [
+      {
+        "segment": string,
+        "sentiment": "positive" | "mixed" | "negative",
+        "reasoning": string
+      }
+    ],
+    "consensus_points": string[],
+    "divergent_points": string[]
+  },
+  "risk_analysis": {
+    "critical_risks": [
+      {
+        "risk": string,
+        "affected_segments": string[],
+        "severity": "critical" | "high" | "medium" | "low",
+        "likelihood": "high" | "medium" | "low",
+        "evidence": string
+      }
+    ],
+    "common_objections": [
+      {
+        "objection": string,
+        "frequency": string,
+        "persona_types": string[]
+      }
+    ],
+    "trust_barriers": string[],
+    "adoption_blockers": string[]
+  },
+  "improvement_plan": {
+    "quick_wins": [
+      {
+        "action": string,
+        "impact": "high" | "medium" | "low",
+        "effort": "high" | "medium" | "low",
+        "addresses": string[]
+      }
+    ],
+    "strategic_improvements": [
+      {
+        "action": string,
+        "rationale": string,
+        "priority": number,
+        "expected_outcome": string
+      }
+    ],
+    "what_would_change_minds": [
+      {
+        "change": string,
+        "potential_impact": string
+      }
+    ],
+    "messaging_recommendations": [
+      {
+        "current_gap": string,
+        "recommendation": string,
+        "target_segment": string
+      }
+    ],
+    "next_steps": string[]
+  },
+  "confidence_assessment": {
+    "overall_confidence": number,
+    "sample_diversity_score": number,
+    "key_uncertainties": string[],
+    "recommendation_strength": "strong" | "moderate" | "weak"
+  }
+}
+
+Generate the experiment summary JSON now.

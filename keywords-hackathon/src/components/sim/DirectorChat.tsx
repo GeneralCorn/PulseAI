@@ -1,86 +1,52 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, X, Send, Sparkles } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MessageSquare, X, Send, Sparkles, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Director model options
+type DirectorModel = "auto" | "gpt-5" | "gpt-4o" | "gpt-5.2" | "claude-sonnet-4-5-20250514";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
 interface DirectorChatProps {
   context: string;
+  simulationId?: string;
   variant?: "floating" | "embedded";
+  disabled?: boolean;
 }
 
 export function DirectorChat({
   context,
+  simulationId,
   variant = "floating",
+  disabled = false,
 }: DirectorChatProps) {
-  const [isOpen, setIsOpen] = useState(variant === "embedded"); // Embedded is always open
-  // Use type assertion to handle the SDK version differences
-  const chatHelpers = useChat({
-    id: "director",
-    // @ts-expect-error - api property exists but is missing in type definition
-    api: "/api/chat",
-    body: {
-      type: "director",
-      context,
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    onError: (err: any) => {
-      console.error("Director chat error:", err);
-    },
-  }) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    append,
-    setInput,
-    isLoading,
-    error,
-  } = chatHelpers || ({} as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-
+  const [isOpen, setIsOpen] = useState(variant === "embedded");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<DirectorModel>("auto");
+  const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const hasInitialized = useRef(false);
-
-  // Trigger initial greeting when opened
+  // Prevent hydration mismatch
   useEffect(() => {
-    // For embedded, it's always open, so this runs on mount.
-    // For floating, it runs when isOpen becomes true.
-    if (
-      isOpen &&
-      messages.length === 0 &&
-      !isLoading &&
-      append &&
-      !hasInitialized.current
-    ) {
-      hasInitialized.current = true;
-      append({
-        role: "user",
-        content:
-          "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise.",
-      });
-    }
-  }, [isOpen, append, isLoading, messages.length]);
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const safeInput = input || "";
-    if (!safeInput.trim()) return;
-
-    if (handleSubmit) {
-      handleSubmit(e);
-    } else if (append) {
-      // Fallback if handleSubmit is missing
-      append({ role: "user", content: safeInput });
-      if (setInput) setInput("");
-    }
-  };
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -88,69 +54,190 @@ export function DirectorChat({
     }
   }, [messages, isOpen]);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!input.trim() || isLoading || disabled) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: input,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+          type: "director",
+          context,
+          simulationId,
+          selectedModel,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      const assistantMessageId = crypto.randomUUID();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+        },
+      ]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value, { stream: true });
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, content: m.content + text }
+              : m
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
+      setError(err instanceof Error ? err.message : "Failed to send message");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const form = e.currentTarget.closest("form");
+      if (form) {
+        form.requestSubmit();
+      }
+    }
+  };
+
   if (variant === "embedded") {
     return (
-      <div className="flex flex-col h-full w-full bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl overflow-hidden shadow-sm">
+      <div className={`flex flex-col h-full w-full bg-card/50 backdrop-blur-xl border border-border/50 rounded-xl overflow-hidden shadow-sm relative ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
         {/* Header */}
         <div className="p-4 border-b border-border/50 bg-primary/5 flex items-center gap-3 shrink-0">
           <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
-          <div>
+          <div className="flex-1">
             <h3 className="font-semibold text-sm">Director</h3>
             <p className="text-xs text-muted-foreground">Orchestrator Mode</p>
           </div>
+          {mounted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                  {selectedModel === "auto" ? "Auto" :
+                   selectedModel === "gpt-5" ? "GPT-5" :
+                   selectedModel === "gpt-4o" ? "GPT-4o" :
+                   selectedModel === "gpt-5.2" ? "GPT-5.2" :
+                   selectedModel === "claude-sonnet-4-5-20250514" ? "Claude" : "Auto"}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSelectedModel("auto")}>
+                  <span className="font-medium">Auto</span>
+                  <span className="text-xs text-muted-foreground ml-2">(Recommended)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-5")}>
+                  GPT-5
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-4o")}>
+                  GPT-4o
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-5.2")}>
+                  GPT-5.2
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("claude-sonnet-4-5-20250514")}>
+                  Claude Sonnet 4.5
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
+        <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="space-y-4">
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-3 rounded-lg">
-                Error:{" "}
-                {error.message ||
-                  "Failed to connect to AI service. Please check your API configuration."}
+                Error: {error}
               </div>
             )}
-            {messages.length === 0 && !error && (
-              <div className="text-center text-xs text-muted-foreground mt-20">
-                <p className="animate-pulse">
-                  Director is analyzing the simulation...
+            {disabled && (
+              <div className="text-center text-sm text-muted-foreground mt-20 px-4">
+                <Sparkles className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-30 animate-pulse" />
+                <p className="font-medium mb-2">Analyzing Simulation...</p>
+                <p className="text-xs">
+                  Director will be ready once the intelligence report is complete.
                 </p>
               </div>
             )}
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {messages
-              .filter(
-                (m: any) =>
-                  m.content !==
-                  "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise."
-              )
-              .map((m: any) => (
+            {!disabled && messages.length === 0 && !error && (
+              <div className="text-center text-sm text-muted-foreground mt-20 px-4">
+                <Sparkles className="h-8 w-8 text-primary mx-auto mb-3 opacity-50" />
+                <p className="font-medium mb-2">Director Ready</p>
+                <p className="text-xs">
+                  Ask me about the simulation results, risks, or strategic recommendations.
+                </p>
+              </div>
+            )}
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={`flex gap-2 ${
+                  m.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {m.role === "assistant" && (
+                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                  </div>
+                )}
                 <div
-                  key={m.id}
-                  className={`flex gap-2 ${
-                    m.role === "user" ? "justify-end" : "justify-start"
+                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                    m.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
                   }`}
                 >
-                  {m.role === "assistant" && (
-                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                      <Sparkles className="h-3 w-3 text-primary" />
-                    </div>
-                  )}
-                  <div
-                    className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {(m as any).content}
-                  </div>
+                  {m.content}
                 </div>
-              ))}
-            {isLoading && (
+              </div>
+            ))}
+            {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && (
               <div className="flex gap-2 justify-start">
                 <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
                   <Sparkles className="h-3 w-3 text-primary" />
@@ -162,21 +249,23 @@ export function DirectorChat({
             )}
             <div ref={scrollRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Input */}
         <div className="p-3 border-t border-border/50 bg-background/50 shrink-0">
-          <form onSubmit={onSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={input}
-              onChange={handleInputChange}
-              placeholder="Ask the Director..."
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={disabled ? "Analyzing simulation..." : "Ask the Director..."}
               className="bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10"
+              disabled={isLoading || disabled}
             />
             <Button
               type="submit"
               size="icon"
-              disabled={isLoading}
+              disabled={isLoading || disabled}
               className="h-10 w-10 shrink-0"
             >
               <Send className="h-4 w-4" />
@@ -232,54 +321,46 @@ export function DirectorChat({
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <div className="space-y-4">
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-3 rounded-lg">
-                    Error:{" "}
-                    {error.message ||
-                      "Failed to connect to AI service. Please check your API configuration."}
+                    Error: {error}
                   </div>
                 )}
                 {messages.length === 0 && !error && (
-                  <div className="text-center text-xs text-muted-foreground mt-20">
-                    <p className="animate-pulse">
-                      Director is analyzing the simulation...
+                  <div className="text-center text-sm text-muted-foreground mt-20 px-4">
+                    <Sparkles className="h-8 w-8 text-primary mx-auto mb-3 opacity-50" />
+                    <p className="font-medium mb-2">Director Ready</p>
+                    <p className="text-xs">
+                      Ask me about the simulation results, risks, or strategic recommendations.
                     </p>
                   </div>
                 )}
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {messages
-                  .filter(
-                    (m: any) =>
-                      m.content !==
-                      "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise."
-                  )
-                  .map((m: any) => (
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`flex gap-2 ${
+                      m.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {m.role === "assistant" && (
+                      <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                        <Sparkles className="h-3 w-3 text-primary" />
+                      </div>
+                    )}
                     <div
-                      key={m.id}
-                      className={`flex gap-2 ${
-                        m.role === "user" ? "justify-end" : "justify-start"
+                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                        m.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-zinc-800 text-zinc-100"
                       }`}
                     >
-                      {m.role === "assistant" && (
-                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                          <Sparkles className="h-3 w-3 text-primary" />
-                        </div>
-                      )}
-                      <div
-                        className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
-                          m.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-zinc-800 text-zinc-100"
-                        }`}
-                      >
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        {(m as any).content}
-                      </div>
+                      {m.content}
                     </div>
-                  ))}
-                {isLoading && (
+                  </div>
+                ))}
+                {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && (
                   <div className="flex gap-2 justify-start">
                     <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
                       <Sparkles className="h-3 w-3 text-primary" />
@@ -291,16 +372,18 @@ export function DirectorChat({
                 )}
                 <div ref={scrollRef} />
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Input */}
             <div className="p-3 border-t border-primary/10 bg-zinc-900/50">
-              <form onSubmit={onSubmit} className="flex gap-2">
+              <form onSubmit={handleSubmit} className="flex gap-2">
                 <Input
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKeyDown}
                   placeholder="Ask the Director..."
                   className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 focus-visible:ring-primary h-10"
+                  disabled={isLoading}
                 />
                 <Button
                   type="submit"
