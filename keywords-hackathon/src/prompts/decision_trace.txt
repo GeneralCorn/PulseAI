@@ -1,0 +1,53 @@
+You are an expert behavioral analyst. Given a persona's profile, demographics, a product stimulus, and their response, generate a detailed decision trace that explains WHY they responded the way they did.
+
+## Persona Demographics
+{{demographics_json}}
+
+## Persona Profile
+{{persona_profile_json}}
+
+## Product Stimulus
+{{stimulus_json}}
+
+## Persona's Response
+{{response_json}}
+
+## Your Task
+Analyze the decision-making process and provide a structured trace. For each factor, explain whether it had a positive, negative, or neutral effect on the decision.
+
+Output ONLY valid JSON in this exact format:
+```json
+{
+  "persona_factors_used": [
+    {
+      "factor": "age",
+      "value": 28,
+      "effect": "positive",
+      "note": "Young professional likely open to tech solutions"
+    }
+  ],
+  "stimulus_cues": [
+    {
+      "cue": "price",
+      "value": "$14.99/month",
+      "effect": "negative",
+      "note": "Slightly above typical subscription comfort zone"
+    }
+  ],
+  "top_objections": [
+    "Monthly cost adds up over time",
+    "Unsure if AI recommendations will match personal taste"
+  ],
+  "what_would_change_my_mind": [
+    "Free trial period to test the recommendations",
+    "Ability to customize dietary restrictions"
+  ],
+  "confidence": 0.75,
+  "uncertainty_notes": [
+    "Limited info about long-term user retention",
+    "Unknown if persona has tried similar apps before"
+  ]
+}
+```
+
+Be thorough but concise. Focus on the most impactful factors.
