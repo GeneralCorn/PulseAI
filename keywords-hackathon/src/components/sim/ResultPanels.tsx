@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -11,13 +12,16 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SimulationResult, Risk, PlanItem } from "@/lib/sim/types";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, ShieldAlert, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle, ShieldAlert, Target, GitMerge } from "lucide-react";
+import { DecisionTree } from "./DecisionTree";
 
 interface ResultPanelsProps {
   result: SimulationResult;
 }
 
 export function ResultPanels({ result }: ResultPanelsProps) {
+  const [activeTab, setActiveTab] = useState("summary");
+
   return (
     <Card className="h-full bg-card/30 backdrop-blur-xl border-border/40 flex flex-col overflow-hidden">
       <CardHeader className="pb-2">
@@ -28,7 +32,7 @@ export function ResultPanels({ result }: ResultPanelsProps) {
         <CardDescription>Run ID: {result.runId.slice(0, 8)}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
-        <Tabs defaultValue="summary" className="h-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <div className="px-6 border-b border-border/40 pb-4">
             <TabsList className="w-full flex bg-muted/40 p-1 h-11 rounded-lg gap-2">
               <TabsTrigger
@@ -36,12 +40,6 @@ export function ResultPanels({ result }: ResultPanelsProps) {
                 className="flex-1 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all h-full flex items-center justify-center font-medium"
               >
                 Summary
-              </TabsTrigger>
-              <TabsTrigger
-                value="debate"
-                className="flex-1 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all h-full flex items-center justify-center font-medium"
-              >
-                Debate
               </TabsTrigger>
               <TabsTrigger
                 value="risks"
@@ -55,12 +53,28 @@ export function ResultPanels({ result }: ResultPanelsProps) {
               >
                 Plan
               </TabsTrigger>
+              <TabsTrigger
+                value="logic"
+                className="flex-1 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm rounded-md transition-all h-full flex items-center justify-center font-medium"
+              >
+                Logic Trace
+              </TabsTrigger>
             </TabsList>
           </div>
 
-          <ScrollArea className="flex-1 p-6">
-            <TabsContent value="summary" className="mt-0 space-y-6">
-              <div className="space-y-4">
+          {/* Logic Trace - Full height, no ScrollArea */}
+          {activeTab === "logic" && (
+            <div className="flex-1 mt-0 overflow-hidden p-6">
+              <DecisionTree result={result} />
+            </div>
+          )}
+
+          {/* Other tabs - with ScrollArea */}
+          {activeTab !== "logic" && (
+            <ScrollArea className="flex-1 p-6 overflow-x-hidden">
+              {activeTab === "summary" && (
+                <div className="mt-0 space-y-6 overflow-hidden">
+              <div className="space-y-4 overflow-hidden">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-background/50 border border-border/50">
                     <div className="text-2xl font-bold text-primary">
@@ -80,75 +94,33 @@ export function ResultPanels({ result }: ResultPanelsProps) {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
-                  <h3 className="font-semibold mb-2 text-primary">
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 overflow-hidden">
+                  <h3 className="font-semibold mb-2 text-primary break-words">
                     Recommendation
                   </h3>
-                  <p className="text-sm">{result.recommendation.summary}</p>
+                  <p className="text-sm break-words whitespace-pre-wrap">{result.recommendation.summary}</p>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold mb-2">
+                <div className="overflow-hidden">
+                  <h3 className="font-semibold mb-2 break-words">
                     Scorecard Justification
                   </h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground break-words whitespace-pre-wrap">
                     {result.scorecard.justification}
                   </p>
                 </div>
               </div>
-            </TabsContent>
+                </div>
+              )}
 
-            <TabsContent value="discuss" className="mt-0 space-y-6">
-              {result.personas.map((persona) => {
-                const arg = result.arguments.find(
-                  (a) => a.personaId === persona.id
-                );
-                if (!arg) return null;
-
-                return (
-                  <div key={persona.id} className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{persona.name}</Badge>
-                      <span
-                        className={`text-xs font-bold ${
-                          arg.stance === "support"
-                            ? "text-green-500"
-                            : arg.stance === "oppose"
-                              ? "text-red-500"
-                              : "text-yellow-500"
-                        }`}
-                      >
-                        {arg.stance.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="bg-green-500/5 p-3 rounded border border-green-500/10">
-                        <ul className="list-disc list-inside space-y-1 text-green-100/80">
-                          {arg.forPoints.map((pt, i) => (
-                            <li key={i}>{pt}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="bg-red-500/5 p-3 rounded border border-red-500/10">
-                        <ul className="list-disc list-inside space-y-1 text-red-100/80">
-                          {arg.againstPoints.map((pt, i) => (
-                            <li key={i}>{pt}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </TabsContent>
-
-            <TabsContent value="risks" className="mt-0 space-y-4">
+              {activeTab === "risks" && (
+                <div className="mt-0 space-y-4 overflow-hidden">
               {result.risks.map((risk) => (
                 <div
                   key={risk.id}
-                  className="flex gap-4 p-4 rounded-lg bg-background/40 border border-border/50"
+                  className="flex gap-4 p-4 rounded-lg bg-background/40 border border-border/50 overflow-hidden"
                 >
-                  <div className="mt-1">
+                  <div className="mt-1 shrink-0">
                     {risk.severity === "high" ||
                     risk.severity === "critical" ? (
                       <ShieldAlert className="h-5 w-5 text-destructive" />
@@ -156,43 +128,47 @@ export function ResultPanels({ result }: ResultPanelsProps) {
                       <AlertTriangle className="h-5 w-5 text-yellow-500" />
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold">{risk.type} Risk</span>
-                      <Badge variant="secondary" className="text-[10px] h-5">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-semibold break-words">{risk.type} Risk</span>
+                      <Badge variant="secondary" className="text-[10px] h-5 shrink-0">
                         {risk.severity.toUpperCase()}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-2 break-words">
                       Likelihood: {risk.likelihood}
                     </p>
-                    <div className="text-sm bg-muted/30 p-2 rounded text-muted-foreground">
+                    <div className="text-sm bg-muted/30 p-2 rounded text-muted-foreground overflow-hidden">
                       <span className="font-semibold text-foreground">
                         Mitigation:{" "}
                       </span>
-                      {risk.mitigation}
+                      <span className="break-words whitespace-pre-wrap">{risk.mitigation}</span>
                     </div>
                   </div>
                 </div>
               ))}
-            </TabsContent>
+                </div>
+              )}
 
-            <TabsContent value="plan" className="mt-0 space-y-4">
+              {activeTab === "plan" && (
+                <div className="mt-0 space-y-4 overflow-hidden">
               {result.plan.map((item, index) => (
-                <div key={item.id} className="flex gap-4 items-start">
-                  <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-medium text-primary">
+                <div key={item.id} className="flex gap-4 items-start overflow-hidden">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-medium text-primary">
                     {index + 1}
                   </div>
-                  <div>
-                    <h4 className="font-medium text-sm">{item.title}</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <h4 className="font-medium text-sm break-words">{item.title}</h4>
+                    <p className="text-sm text-muted-foreground break-words whitespace-pre-wrap">
                       {item.description}
                     </p>
                   </div>
                 </div>
               ))}
-            </TabsContent>
-          </ScrollArea>
+                </div>
+              )}
+            </ScrollArea>
+          )}
         </Tabs>
       </CardContent>
     </Card>

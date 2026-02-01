@@ -74,21 +74,21 @@ export function PersonaCard({
               />
               <AvatarFallback>{persona.name[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col min-w-0 justify-center h-full py-0.5">
-              <CardTitle className="text-sm font-bold leading-tight">
+            <div className="flex flex-col min-w-0 justify-center h-full py-0.5 overflow-hidden">
+              <CardTitle className="text-sm font-bold leading-tight break-words">
                 {persona.name}
               </CardTitle>
-              <span className="text-xs text-muted-foreground mt-0.5">
+              <span className="text-xs text-muted-foreground mt-0.5 break-words">
                 {persona.role}
               </span>
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 flex-1 flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
+          <CardContent className="p-4 flex-1 flex flex-col gap-3 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div
                 className={clsx(
-                  "text-[10px] font-bold px-2 py-1 rounded-md border tracking-wide uppercase flex items-center justify-center",
+                  "text-[10px] font-bold px-2 py-1 rounded-md border tracking-wide uppercase flex items-center justify-center shrink-0",
                   argument.stance === "support" &&
                     "bg-green-500/10 text-green-500 border-green-500/20",
                   argument.stance === "oppose" &&
@@ -100,12 +100,12 @@ export function PersonaCard({
                 {argument.stance}
               </div>
 
-              <div className="flex gap-1 flex-wrap justify-end">
+              <div className="flex gap-1 flex-wrap justify-end min-w-0">
                 {persona.tags.slice(0, 2).map((tag) => (
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="text-[9px] h-5 px-1.5 text-muted-foreground font-normal border-border/50"
+                    className="text-[9px] h-5 px-1.5 text-muted-foreground font-normal border-border/50 break-all"
                   >
                     {tag}
                   </Badge>
@@ -113,8 +113,8 @@ export function PersonaCard({
               </div>
             </div>
 
-            <div className="relative pl-3 border-l-2 border-primary/20 mt-1">
-              <p className="text-xs text-muted-foreground line-clamp-3 italic leading-relaxed">
+            <div className="relative pl-3 border-l-2 border-primary/20 mt-1 overflow-hidden">
+              <p className="text-xs text-muted-foreground line-clamp-3 italic leading-relaxed break-words">
                 &ldquo;{argument.thoughtProcess}&rdquo;
               </p>
             </div>

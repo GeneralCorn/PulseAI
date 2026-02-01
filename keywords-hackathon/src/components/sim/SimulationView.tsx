@@ -3,11 +3,12 @@
 import { SimulationResult } from "@/lib/sim/types";
 import { PersonaCard } from "@/components/sim/PersonaCard";
 import { ResultPanels } from "@/components/sim/ResultPanels";
-import { CenterStage } from "@/components/sim/CenterStage";
+import { DirectorChat } from "@/components/sim/DirectorChat";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
 import { UserProfile } from "@/components/UserProfile";
+import { useState } from "react";
 
 interface SimulationViewProps {
   result: SimulationResult;
@@ -20,6 +21,7 @@ export function SimulationView({
   onBack,
   isReadOnly = false,
 }: SimulationViewProps) {
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const mainIdea = result.ideas[0];
   const compareIdea = result.ideas[1];
 
@@ -29,7 +31,7 @@ export function SimulationView({
     Mode: ${result.mode}
     Idea A: ${mainIdea.title} - ${mainIdea.description}
     ${compareIdea ? `Idea B: ${compareIdea.title} - ${compareIdea.description}` : ""}
-    
+
     Recommendation: ${JSON.stringify(result.recommendation)}
     Plan: ${JSON.stringify(result.plan)}
     Risks: ${JSON.stringify(result.risks)}
@@ -73,9 +75,9 @@ export function SimulationView({
       </header>
 
       {/* Main Grid Layout */}
-      <div className="flex-1 grid grid-cols-12 gap-4 min-h-0">
+      <div className="flex-1 flex gap-4 min-h-0">
         {/* Left Column: Persona Swarm */}
-        <div className="col-span-3 flex flex-col gap-4 min-h-0">
+        <div className="w-[280px] flex flex-col gap-4 min-h-0 shrink-0">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
             Stakeholder Swarm
           </h2>
@@ -97,19 +99,51 @@ export function SimulationView({
           </div>
         </div>
 
-        {/* Center Column: Director Chat & Logic Trace */}
-        <div className="col-span-5 flex flex-col gap-4 min-h-0">
-          <CenterStage result={result} directorContext={directorContext} />
-        </div>
-
-        {/* Right Column: Result Panels */}
-        <div className="col-span-4 flex flex-col gap-4 min-h-0">
+        {/* Center Column: Intelligence (Mission Report) */}
+        <div className="flex-1 flex flex-col gap-4 min-h-0">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
             Intelligence
           </h2>
           <div className="flex-1 min-h-0">
             <ResultPanels result={result} />
           </div>
+        </div>
+
+        {/* Right Column: Director Chat (Collapsible) */}
+        <div className={`flex flex-col gap-4 min-h-0 transition-all duration-300 ${isChatOpen ? 'w-[380px]' : 'w-12'} shrink-0`}>
+          {isChatOpen ? (
+            <>
+              <div className="flex items-center justify-between shrink-0">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Director Chat
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setIsChatOpen(false)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 min-h-0 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden">
+                <DirectorChat context={directorContext} variant="embedded" />
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-start justify-center pt-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:bg-primary/10"
+                onClick={() => setIsChatOpen(true)}
+                title="Open Director Chat"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

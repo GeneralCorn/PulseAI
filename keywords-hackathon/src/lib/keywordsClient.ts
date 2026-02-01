@@ -89,7 +89,7 @@ export async function callPrompt(
     return callLocalPrompt(promptId, variables);
   }
 
-  const model = process.env.PRIMARY_MODEL ?? 'gpt-4o-mini';
+  const model = process.env.PRIMARY_MODEL ?? 'gpt-5-mini';
   const startTime = Date.now();
   const inputHash = sha256Hash({ promptId, variables });
 
@@ -127,7 +127,7 @@ export async function callLocalPrompt(
   promptId: string,
   variables: Record<string, unknown>
 ): Promise<PromptCallResult> {
-  const model = process.env.PRIMARY_MODEL ?? 'gpt-4o-mini';
+  const model = process.env.PRIMARY_MODEL ?? 'gpt-5-mini';
   const startTime = Date.now();
   
   // Load and interpolate template

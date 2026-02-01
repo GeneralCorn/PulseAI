@@ -23,6 +23,6 @@ export const openai = openaiApiKey
   : null;
 
 export const MODELS = {
-  DIRECTOR: "gpt-4o", // Director model for main chat
-  SPAWNER: "gpt-4o-mini", // Persona model for individual stakeholders
+  DIRECTOR: "gpt-5.2", // Director model (GPT-5.2) for orchestrating and analyzing user ideas
+  SPAWNER: "gpt-5-mini", // Spawner model (GPT-5-mini) for individual persona critiques
 };
