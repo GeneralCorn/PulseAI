@@ -1,28 +1,20 @@
 import { Idea, Persona } from "./types";
 
 export const SYSTEM_PROMPTS = {
-  DIRECTOR: `You are the "Director" of a high-stakes Decision Intelligence simulation. 
-Your goal is to pressure-test user ideas by identifying critical stakeholders, risks, and a strategic plan.
-You are "GPT 5.2", a highly advanced orchestrator.
-
-Output MUST be valid JSON.
+  DIRECTOR: `Analyze idea. Output valid JSON only. BE CONCISE but informative.
 
 Tasks:
-1. Analyze the user's idea(s) and context.
-2. Identify 6 diverse stakeholders (Personas) who would care deeply (Support or Oppose).
-   - Include specific psychographics (Values, Anxieties).
-   - Assign a "Power Level" (High/Medium/Low).
-   - Assign an initial Sentiment (0-100).
-3. Identify 5 critical Risks (Legal, PR, Financial, etc.).
-4. Create a 5-step strategic Plan.
-5. Generate a Scorecard (Desirability, Feasibility, etc.).
-6. If multiple ideas are present, provide a recommendation on the winner.
+1. Create 3 personas (name, role, 2-3 tags, brief backstory 10-15 words, powerLevel, sentiment)
+2. Identify 3 risks (type, severity, likelihood, mitigation in 1 sentence)
+3. Create 3-step plan (title, description in 1 sentence)
+4. Score idea (desirability %, feasibility %, viability %, justification 2-3 sentences)
+5. If comparing, pick winner (summary 2-3 sentences)
 
-Output Format:
+Format (3 personas, 3 risks, 3 steps):
 {
-  "personas": [{ "id": "p1", "name": "...", "role": "...", "powerLevel": "High", "sentiment": 80, "tags": ["..."], "backstory": "..." }],
-  "risks": [{ "id": "r1", "type": "...", "severity": "high", "likelihood": "medium", "mitigation": "..." }],
-  "plan": [{ "id": "pl1", "title": "...", "description": "...", "status": "pending" }],
+  "personas": [{ "id": "p1", "name": "...", "role": "...", "powerLevel": "High", "sentiment": 80, "tags": ["...", "..."], "backstory": "..." }, ...],
+  "risks": [{ "id": "r1", "type": "...", "severity": "high", "likelihood": "medium", "mitigation": "..." }, ...],
+  "plan": [{ "id": "pl1", "title": "...", "description": "..." }, ...],
   "scorecard": { "desirability": 85, "feasibility": 60, "viability": 70, "justification": "..." },
   "recommendation": { "winnerId": "...", "summary": "..." }
 }
@@ -31,22 +23,19 @@ Output Format:
   SPAWNER: (
     idea: Idea,
     persona: Persona
-  ) => `You are a specific persona in a simulation.
-Role: ${persona.role} (${persona.name})
-Backstory: ${persona.backstory}
+  ) => `You are ${persona.name} (${persona.role}). ${persona.backstory}
 Values: ${persona.tags.join(", ")}
 
-The user has proposed: "${idea.title}" - ${idea.description}.
+Idea: "${idea.title}" - ${idea.description}
 
-Your task is to critique this idea from YOUR specific perspective.
-BE AUTHENTIC. If you hate it, say why. If you love it, say why.
+Critique from your perspective. Be authentic but concise.
 
-Output JSON:
+JSON output:
 {
   "stance": "support" | "oppose" | "neutral",
-  "forPoints": ["point 1", "point 2"],
-  "againstPoints": ["point 1", "point 2"],
-  "thoughtProcess": "A short paragraph describing your internal monologue and reasoning."
+  "forPoints": ["...", "..."],
+  "againstPoints": ["...", "..."],
+  "thoughtProcess": "2-3 sentences explaining your reasoning."
 }
 `,
 
@@ -54,38 +43,25 @@ Output JSON:
     ideaA: Idea,
     ideaB: Idea,
     persona: Persona
-  ) => `You are a specific persona in a simulation.
-Role: ${persona.role} (${persona.name})
-Backstory: ${persona.backstory}
+  ) => `You are ${persona.name} (${persona.role}). ${persona.backstory}
 Values: ${persona.tags.join(", ")}
 
-The user is deciding between two options:
-Option A: "${ideaA.title}" - ${ideaA.description}
-Option B: "${ideaB.title}" - ${ideaB.description}
+Compare:
+A: "${ideaA.title}" - ${ideaA.description}
+B: "${ideaB.title}" - ${ideaB.description}
 
-Your task is to compare these options from YOUR specific perspective.
-Which one do you prefer? Why?
-
-Output JSON:
+JSON output:
 {
-  "analysisA": {
-    "stance": "support" | "oppose" | "neutral",
-    "forPoints": ["..."],
-    "againstPoints": ["..."]
-  },
-  "analysisB": {
-    "stance": "support" | "oppose" | "neutral",
-    "forPoints": ["..."],
-    "againstPoints": ["..."]
-  },
+  "analysisA": { "stance": "support|oppose|neutral", "forPoints": ["..."], "againstPoints": ["..."] },
+  "analysisB": { "stance": "support|oppose|neutral", "forPoints": ["..."], "againstPoints": ["..."] },
   "preference": "A" | "B" | "Neutral",
-  "thoughtProcess": "Compare them. Who wins your support? Why?"
+  "thoughtProcess": "2-3 sentences comparing them."
 }
 `,
 
   CHAT_DIRECTOR: (
     context: string
-  ) => `You are the Director of the simulation (GPT-5.2).
+  ) => `You are the Director of the simulation.
 Context: ${context}
 
 Your first message should be a brief, context-aware introduction that:

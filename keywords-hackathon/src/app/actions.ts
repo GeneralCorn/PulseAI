@@ -115,6 +115,34 @@ export async function startSimulation(formData: FormData) {
     const duration = Date.now() - startTime;
     console.log(`[Action] Simulation completed in ${duration}ms`);
 
+    // 2.5. Update idea(s) with credit usage
+    if (dbEnabled && result.creditUsage) {
+      const creditPerIdea = result.creditUsage / ideas.length; // Split evenly if comparing
+
+      for (const idea of ideas) {
+        // Fetch current credit usage
+        const { data: currentIdea } = await supabase
+          .from("ideas")
+          .select("credit_usage")
+          .eq("id", idea.id)
+          .single();
+
+        const newCreditUsage = (currentIdea?.credit_usage || 0) + creditPerIdea;
+
+        // Update with new total
+        const { error: updateError } = await supabase
+          .from("ideas")
+          .update({ credit_usage: newCreditUsage })
+          .eq("id", idea.id);
+
+        if (updateError) {
+          console.warn(`Failed to update credit usage for idea ${idea.id}:`, updateError);
+        } else {
+          console.log(`[Action] Updated idea ${idea.id} credit usage: $${newCreditUsage.toFixed(6)}`);
+        }
+      }
+    }
+
     // 3. Persist Simulation result linked to User and Idea(s)
     if (dbEnabled) {
         const { data, error } = await supabase

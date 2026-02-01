@@ -92,8 +92,8 @@ export function PersonaChatModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950/95 backdrop-blur-xl border-zinc-800 text-zinc-100 shadow-2xl">
-        <DialogHeader className="border-b border-zinc-800 pb-4">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col bg-zinc-950/95 backdrop-blur-xl border-zinc-800 text-zinc-100 shadow-2xl">
+        <DialogHeader className="border-b border-zinc-800 pb-4 shrink-0 max-h-[40vh] overflow-y-auto">
           <DialogTitle className="flex items-center gap-3">
             <Avatar className="h-10 w-10 border border-zinc-700">
               <AvatarImage src={persona.avatarUrl} className="object-cover" />
@@ -112,7 +112,7 @@ export function PersonaChatModal({
                 <span className="text-xs font-semibold text-zinc-300 block mb-1">
                   Backstory
                 </span>
-                <p className="text-xs text-zinc-400 italic leading-relaxed">
+                <p className="text-xs text-zinc-400 italic leading-relaxed break-words">
                   &ldquo;{persona.backstory}&rdquo;
                 </p>
               </div>
@@ -120,22 +120,15 @@ export function PersonaChatModal({
                 <span className="text-xs font-semibold text-zinc-300 block mb-1">
                   Initial Thoughts
                 </span>
-                <p className="text-xs text-zinc-400 leading-relaxed">
+                <p className="text-xs text-zinc-400 leading-relaxed break-words">
                   {argument?.thoughtProcess || "Thinking..."}
                 </p>
               </div>
             </div>
-            <div className="text-sm">
-              Discussing{" "}
-              <span className="text-primary font-medium">
-                &quot;{idea.title}&quot;
-              </span>
-              . Ask me anything about my stance.
-            </div>
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[400px] pr-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
           <div className="flex flex-col gap-4 py-4">
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs p-3 rounded-lg">
@@ -148,7 +141,7 @@ export function PersonaChatModal({
               <div className="flex flex-col items-center justify-center h-full mt-20 gap-2 text-muted-foreground opacity-50">
                 <MessageSquareText className="h-8 w-8" />
                 <p className="text-sm italic">
-                  Start a conversation with {persona.name}...
+                  Start a conversation about &quot;{idea.title}&quot; with {persona.name}
                 </p>
               </div>
             )}
@@ -194,7 +187,7 @@ export function PersonaChatModal({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="border-t border-zinc-800 pt-4">
+        <DialogFooter className="border-t border-zinc-800 pt-4 shrink-0">
           <form onSubmit={onSubmit} className="flex w-full items-center gap-2">
             <Input
               value={input || ""}

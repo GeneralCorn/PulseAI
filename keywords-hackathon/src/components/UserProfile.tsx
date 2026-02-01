@@ -24,6 +24,7 @@ interface IdeaWithRun {
   id: string;
   title: string;
   created_at: string;
+  credit_usage: number;
   simulations: { id: string }[];
 }
 
@@ -75,6 +76,7 @@ export function UserProfile() {
         id,
         title,
         created_at,
+        credit_usage,
         simulations (
           id
         )
@@ -111,6 +113,9 @@ export function UserProfile() {
         .toUpperCase()
         .slice(0, 2)
     : user.email?.slice(0, 2).toUpperCase() || "U";
+
+  // Calculate total credits used
+  const totalCredits = ideas.reduce((sum, idea) => sum + (idea.credit_usage || 0), 0);
 
   return (
     <DropdownMenu>
@@ -161,8 +166,11 @@ export function UserProfile() {
                     }
                     passHref
                   >
-                    <DropdownMenuItem className="cursor-pointer">
-                      <span className="truncate">{idea.title}</span>
+                    <DropdownMenuItem className="cursor-pointer flex items-center justify-between gap-2">
+                      <span className="truncate flex-1">{idea.title}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ${(idea.credit_usage || 0).toFixed(3)}
+                      </span>
                     </DropdownMenuItem>
                   </Link>
                 ))
@@ -170,6 +178,15 @@ export function UserProfile() {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <div className="px-2 py-2">
+          <div className="text-xs text-muted-foreground">
+            Total Credits Used
+          </div>
+          <div className="text-sm font-semibold text-primary">
+            ${totalCredits.toFixed(4)}
+          </div>
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />

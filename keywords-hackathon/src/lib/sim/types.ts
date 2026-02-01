@@ -58,9 +58,10 @@ export interface SimulationResult {
   mode: 'single' | 'compare';
   ideas: Idea[];
   personas: Persona[];
-  arguments: Argument[]; 
+  arguments: Argument[];
   risks: Risk[];
   scorecard: Scorecard;
   recommendation: Recommendation;
   plan: PlanItem[];
+  creditUsage?: number; // Total cost in USD for all API calls
 }
