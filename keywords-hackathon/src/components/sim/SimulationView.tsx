@@ -139,7 +139,7 @@ export function SimulationView({
             </Link>
           )}
           <h1 className="text-xl font-bold tracking-tight text-primary">
-            Synthetic Pulse{" "}
+            Pulse{" "}
             <span className="text-muted-foreground font-normal">
               / Command Center
             </span>
@@ -217,7 +217,12 @@ export function SimulationView({
                 </Button>
               </div>
               <div className="flex-1 min-h-0 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden">
-                <DirectorChat context={directorContext} variant="embedded" />
+                <DirectorChat
+                  context={directorContext}
+                  simulationId={result.runId}
+                  variant="embedded"
+                  disabled={isLoadingSummary}
+                />
               </div>
             </>
           ) : (

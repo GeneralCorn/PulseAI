@@ -40,7 +40,7 @@ export function PersonaCard({
         initial={{ opacity: 0, y: 20 }}
         animate={{
           opacity: 1,
-          y: [0, -5, 0],
+          y: [0, 8, 0],
         }}
         transition={{
           y: {

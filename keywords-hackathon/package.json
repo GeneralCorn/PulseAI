@@ -10,6 +10,7 @@
     "experiment": "npx tsx src/scripts/run_one_experiment.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.35",
     "@ai-sdk/openai": "^3.0.24",
     "@ai-sdk/react": "^3.0.68",
     "@radix-ui/react-alert-dialog": "^1.1.15",
