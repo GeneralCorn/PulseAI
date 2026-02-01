@@ -102,3 +102,101 @@ export function validatePersonaResponse(data: unknown): PersonaResponse {
 export function validateDecisionTrace(data: unknown): DecisionTrace {
   return DecisionTraceSchema.parse(data);
 }
+
+// ============================================================================
+// EXPERIMENT SUMMARY SCHEMA (Aggregated analysis from all personas)
+// ============================================================================
+const SentimentEnum = z.enum(['positive', 'mixed', 'negative']);
+const SeverityEnum = z.enum(['critical', 'high', 'medium', 'low']);
+const LikelihoodEnum = z.enum(['high', 'medium', 'low']);
+const ImpactEffortEnum = z.enum(['high', 'medium', 'low']);
+const RecommendationStrengthEnum = z.enum(['strong', 'moderate', 'weak']);
+
+export const SegmentBreakdownSchema = z.object({
+  segment: z.string(),
+  sentiment: SentimentEnum,
+  reasoning: z.string(),
+});
+
+export const CriticalRiskSchema = z.object({
+  risk: z.string(),
+  affected_segments: z.array(z.string()),
+  severity: SeverityEnum,
+  likelihood: LikelihoodEnum,
+  evidence: z.string(),
+});
+
+export const CommonObjectionSchema = z.object({
+  objection: z.string(),
+  // Accept both string and number, coerce number to string
+  frequency: z.union([z.string(), z.number()]).transform((val) => String(val)),
+  persona_types: z.array(z.string()),
+});
+
+export const QuickWinSchema = z.object({
+  action: z.string(),
+  impact: ImpactEffortEnum,
+  effort: ImpactEffortEnum,
+  addresses: z.array(z.string()),
+});
+
+export const StrategicImprovementSchema = z.object({
+  action: z.string(),
+  rationale: z.string(),
+  priority: z.number().int().min(1).max(5),
+  expected_outcome: z.string(),
+});
+
+export const MindChangeSchema = z.object({
+  change: z.string(),
+  potential_impact: z.string(),
+});
+
+export const MessagingRecommendationSchema = z.object({
+  current_gap: z.string(),
+  recommendation: z.string(),
+  target_segment: z.string(),
+});
+
+export const ExperimentSummarySchema = z.object({
+  general_summary: z.object({
+    overall_sentiment: SentimentEnum,
+    average_scores: z.object({
+      purchase_intent: z.number().min(1).max(5),
+      trust: z.number().min(1).max(5),
+      clarity: z.number().min(1).max(5),
+      differentiation: z.number().min(1).max(5),
+    }),
+    try_rate: z.number().min(0).max(1),
+    pay_rate: z.number().min(0).max(1),
+    key_insights: z.array(z.string()),
+    segment_breakdown: z.array(SegmentBreakdownSchema),
+    consensus_points: z.array(z.string()),
+    divergent_points: z.array(z.string()),
+  }),
+  risk_analysis: z.object({
+    critical_risks: z.array(CriticalRiskSchema),
+    common_objections: z.array(CommonObjectionSchema),
+    trust_barriers: z.array(z.string()),
+    adoption_blockers: z.array(z.string()),
+  }),
+  improvement_plan: z.object({
+    quick_wins: z.array(QuickWinSchema),
+    strategic_improvements: z.array(StrategicImprovementSchema),
+    what_would_change_minds: z.array(MindChangeSchema),
+    messaging_recommendations: z.array(MessagingRecommendationSchema),
+    next_steps: z.array(z.string()),
+  }),
+  confidence_assessment: z.object({
+    overall_confidence: z.number().min(0).max(1),
+    sample_diversity_score: z.number().min(0).max(1),
+    key_uncertainties: z.array(z.string()),
+    recommendation_strength: RecommendationStrengthEnum,
+  }),
+});
+
+export type ExperimentSummary = z.infer<typeof ExperimentSummarySchema>;
+
+export function validateExperimentSummary(data: unknown): ExperimentSummary {
+  return ExperimentSummarySchema.parse(data);
+}
