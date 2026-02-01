@@ -185,10 +185,20 @@ export function PersonaChatModal({
               <AvatarImage src={avatarUrl} className="object-cover" />
               <AvatarFallback>{name[0]}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-0.5">
               <span>{name}</span>
               <span className="text-xs font-normal text-muted-foreground">
                 {occupation}
+              </span>
+              <span className="text-[10px] font-normal text-zinc-500">
+                {[
+                  persona.demographics.age && `${persona.demographics.age}y`,
+                  persona.demographics.gender,
+                  persona.demographics.location,
+                  persona.demographics.income_level,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </div>
           </DialogTitle>

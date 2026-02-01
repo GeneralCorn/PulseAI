@@ -125,6 +125,17 @@ export function PersonaCard({
                 <span className="text-xs text-muted-foreground mt-0.5 break-words">
                   {occupation}
                 </span>
+                {/* Demographic info line */}
+                <span className="text-[10px] text-muted-foreground/70 mt-1 truncate">
+                  {[
+                    persona.demographics.age && `${persona.demographics.age}y`,
+                    persona.demographics.gender,
+                    persona.demographics.location,
+                    persona.demographics.income_level,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
               </div>
             </CardHeader>
 
