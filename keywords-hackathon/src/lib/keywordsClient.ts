@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { calculateCost, UsageMetrics } from './costCalculator';
 
 // ============================================================================
 // OpenAI client configured for KeywordsAI Gateway (lazy initialization)
@@ -16,6 +17,40 @@ function getClient(): OpenAI {
     });
   }
   return _client;
+}
+
+// ============================================================================
+// Usage Tracking (for credit calculation)
+// ============================================================================
+let _accumulatedUsage: UsageMetrics[] = [];
+let _totalCost = 0;
+let _callCount = 0;
+
+export function resetUsageTracker(): void {
+  _accumulatedUsage = [];
+  _totalCost = 0;
+  _callCount = 0;
+}
+
+export function getUsageStats(): { totalCost: number; callCount: number; usageList: UsageMetrics[] } {
+  return {
+    totalCost: _totalCost,
+    callCount: _callCount,
+    usageList: [..._accumulatedUsage],
+  };
+}
+
+function trackUsage(model: string, inputTokens?: number, outputTokens?: number): void {
+  if (inputTokens !== undefined && outputTokens !== undefined) {
+    const usage: UsageMetrics = {
+      model,
+      inputTokens,
+      outputTokens,
+    };
+    _accumulatedUsage.push(usage);
+    _totalCost += calculateCost(usage);
+  }
+  _callCount++;
 }
 
 // ============================================================================
@@ -49,6 +84,8 @@ const LOCAL_PROMPT_FILES: Record<string, string> = {
   'local:decision_trace': 'decision_trace.txt',
   'local:persona_profile': 'persona_profile.txt',
   'local:persona_response': 'persona_response.txt',
+  'local:simulation_director': 'simulation_director.txt',
+  'local:experiment_summary': 'experiment_summary.txt',
 };
 
 function loadLocalPrompt(promptId: string): string {
@@ -105,6 +142,10 @@ export async function callPrompt(
   const latencyMs = Date.now() - startTime;
   const content = completion.choices[0]?.message?.content ?? '';
   const outputHash = sha256Hash(content);
+  const usedModel = completion.model ?? model;
+
+  // Track usage for credit calculation
+  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens);
 
   // Debug: log the raw response
   console.log(`[KeywordsAI] Prompt ${promptId} response (first 500 chars):`, content.substring(0, 500));
@@ -114,7 +155,7 @@ export async function callPrompt(
     latencyMs,
     inputTokens: completion.usage?.prompt_tokens,
     outputTokens: completion.usage?.completion_tokens,
-    model: completion.model ?? model,
+    model: usedModel,
     inputHash,
     outputHash,
   };
@@ -144,13 +185,17 @@ export async function callLocalPrompt(
   const latencyMs = Date.now() - startTime;
   const content = completion.choices[0]?.message?.content ?? '';
   const outputHash = sha256Hash(content);
+  const usedModel = completion.model ?? model;
+
+  // Track usage for credit calculation
+  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens);
 
   return {
     content,
     latencyMs,
     inputTokens: completion.usage?.prompt_tokens,
     outputTokens: completion.usage?.completion_tokens,
-    model: completion.model ?? model,
+    model: usedModel,
     inputHash,
     outputHash,
   };

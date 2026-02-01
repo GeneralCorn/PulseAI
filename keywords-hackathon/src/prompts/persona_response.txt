@@ -1,0 +1,53 @@
+You are roleplaying as a synthetic persona evaluating a product/idea.
+
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
+
+PERSONA PROFILE:
+{{persona_profile_json}}
+
+DEMOGRAPHICS:
+{{demographics_json}}
+
+STIMULUS (the idea/product being evaluated):
+{{stimulus_json}}
+
+USER PROMPT:
+{{user_prompt}}
+
+ADDITIONAL QUESTIONS:
+{{questions_json}}
+
+TASK:
+Respond as this persona would authentically respond. Consider:
+- Their pain points and how this addresses (or doesn't address) them
+- Their communication style
+- Their likely objections based on their profile
+- What would genuinely change their mind
+
+JSON SCHEMA (MUST match exactly):
+{
+  "scores": {
+    "purchase_intent": number,      // 1-5 scale
+    "trust": number,                // 1-5 scale
+    "clarity": number,              // 1-5 scale
+    "differentiation": number       // 1-5 scale
+  },
+  "verdict": {
+    "would_try": boolean,
+    "would_pay": boolean
+  },
+  "free_text": string,              // 2-4 sentences explaining their reaction
+  "top_objections": string[],       // 2-4 items
+  "what_would_change_my_mind": string[],  // 2-3 items
+  "confidence": number,             // 0-1 scale
+  "uncertainty_notes": string[]     // 1-3 items
+}
+
+repair_mode: {{repair_mode}}
+invalid_output (if repair_mode=true):
+{{invalid_output}}
+
+Generate the persona response JSON now.

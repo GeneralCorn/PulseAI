@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -26,6 +26,12 @@ interface ResultPanelsProps {
 
 export function ResultPanels({ result, aiSummary, isLoadingSummary, onGenerateSummary }: ResultPanelsProps) {
   const [activeTab, setActiveTab] = useState("summary");
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering Tabs after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Helper to get severity color
   const getSeverityColor = (severity: string) => {
@@ -47,6 +53,24 @@ export function ResultPanels({ result, aiSummary, isLoadingSummary, onGenerateSu
       default: return 'text-muted-foreground';
     }
   };
+
+  // Show loading state until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <Card className="h-full bg-card/30 backdrop-blur-xl border-border/40 flex flex-col overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Mission Report
+          </CardTitle>
+          <CardDescription>Run ID: {result.runId.slice(0, 8)}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-full bg-card/30 backdrop-blur-xl border-border/40 flex flex-col overflow-hidden">

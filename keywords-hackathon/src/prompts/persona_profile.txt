@@ -1,0 +1,39 @@
+You generate a stable persona profile for a synthetic user.
+
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
+- Do NOT invent specific real-world facts (exact employer, exact city, exact brand history) unless implied by the input.
+
+CONTENT RULES:
+- Avoid stereotypes. Use the given attributes to shape preferences and constraints, not clichés.
+- Keep the persona realistic, internally consistent, and reusable across multiple questions/variants.
+- Write in English unless demographics_json implies another language.
+- Keep fields concise.
+
+REPAIR MODE:
+If repair_mode is true:
+- You will be given invalid_output.
+- Return ONLY a corrected JSON that matches the schema below.
+- Preserve the original intent as much as possible; only fix formatting/schema issues.
+
+JSON SCHEMA (MUST match exactly):
+{
+  "one_liner": string,
+  "pain_points": string[],                 // 2-5 items
+  "alternatives": string[],                // 2-5 items, generic if unsure
+  "communication_style": {
+    "tone": string,                        // e.g., "direct", "friendly", "skeptical"
+    "verbosity": string                    // "low" | "medium" | "high"
+  }
+}
+
+Generate PersonaProfile JSON using the persona demographics.
+
+demographics_json:
+{{demographics_json}}
+
+repair_mode: {{repair_mode}}
+invalid_output (if repair_mode=true):
+{{invalid_output}}

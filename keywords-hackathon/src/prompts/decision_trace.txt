@@ -1,0 +1,47 @@
+You analyze a persona's response to explain their decision-making process.
+
+CRITICAL OUTPUT RULES:
+- Output MUST be a single valid JSON object.
+- Output MUST NOT include any extra text, markdown, code fences, or commentary.
+- Do NOT include chain-of-thought or hidden reasoning.
+
+PERSONA PROFILE:
+{{persona_profile_json}}
+
+DEMOGRAPHICS:
+{{demographics_json}}
+
+STIMULUS:
+{{stimulus_json}}
+
+PERSONA'S RESPONSE:
+{{response_json}}
+
+TASK:
+Analyze which factors from the persona's profile influenced their response, and which elements of the stimulus triggered reactions.
+
+JSON SCHEMA (MUST match exactly):
+{
+  "persona_factors_used": [
+    {
+      "factor": string,           // e.g., "income_level", "pain_point_1"
+      "value": any,               // the actual value from their profile
+      "effect": "positive" | "negative" | "neutral",
+      "note": string              // brief explanation of how it influenced the response
+    }
+  ],
+  "stimulus_cues": [
+    {
+      "cue": string,              // element from the stimulus
+      "value": any,
+      "effect": "positive" | "negative" | "neutral",
+      "note": string
+    }
+  ],
+  "top_objections": string[],
+  "what_would_change_my_mind": string[],
+  "confidence": number,           // 0-1
+  "uncertainty_notes": string[]
+}
+
+Generate the decision trace JSON now.
