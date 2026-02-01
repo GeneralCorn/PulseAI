@@ -97,25 +97,44 @@ export default function LandingPage() {
             className={`w-full transition-all duration-500 ease-in-out ${isCompareMode ? "max-w-5xl" : "max-w-2xl"}`}
           >
             <div className="bg-background/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl ring-1 ring-white/10">
-              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                   <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                     Simulation Engine Ready
                   </span>
                 </div>
-                <div className="flex items-center gap-3 bg-background/50 rounded-full px-4 py-1.5 border border-border/50">
-                  <Label
-                    htmlFor="compare-mode"
-                    className="text-xs font-medium cursor-pointer select-none"
-                  >
-                    A/B Comparison
-                  </Label>
-                  <Switch
-                    id="compare-mode"
-                    checked={isCompareMode}
-                    onCheckedChange={setIsCompareMode}
-                  />
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 bg-background/50 rounded-full px-4 py-1.5 border border-border/50">
+                    <Label
+                      htmlFor="sample-count"
+                      className="text-xs font-medium cursor-pointer select-none whitespace-nowrap"
+                    >
+                      Personas
+                    </Label>
+                    <Input
+                      id="sample-count"
+                      name="sample_count"
+                      type="number"
+                      min={1}
+                      max={100}
+                      defaultValue={10}
+                      className="w-16 h-7 text-center bg-transparent border-0 focus:ring-0 text-sm font-medium p-0"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 bg-background/50 rounded-full px-4 py-1.5 border border-border/50">
+                    <Label
+                      htmlFor="compare-mode"
+                      className="text-xs font-medium cursor-pointer select-none"
+                    >
+                      A/B Comparison
+                    </Label>
+                    <Switch
+                      id="compare-mode"
+                      checked={isCompareMode}
+                      onCheckedChange={setIsCompareMode}
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -21,6 +21,7 @@ export async function startSimulation(formData: FormData) {
   const description = formData.get("description") as string;
   const mode = formData.get("mode") as string;
   const isCompare = formData.get("is_compare") === "true";
+  const sampleCount = parseInt(formData.get("sample_count") as string) || 10;
 
   try {
     // 1. Create Idea(s) in DB (or use temp if DB fails)
@@ -118,6 +119,7 @@ export async function startSimulation(formData: FormData) {
     
     const result = await runSimulation(ideas, isCompare ? "compare" : "single", {
       intensityMode: mode as "war_room" | "quick",
+      personaCount: sampleCount,
     });
     
     const duration = Date.now() - startTime;
