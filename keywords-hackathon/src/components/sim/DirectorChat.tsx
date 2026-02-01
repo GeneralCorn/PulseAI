@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, X, Send, Sparkles } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
 
 interface DirectorChatProps {
   context: string;
@@ -20,7 +19,6 @@ export function DirectorChat({
 }: DirectorChatProps) {
   const [isOpen, setIsOpen] = useState(variant === "embedded"); // Embedded is always open
   // Use type assertion to handle the SDK version differences
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chatHelpers = useChat({
     id: "director",
     // @ts-expect-error - api property exists but is missing in type definition
@@ -48,28 +46,38 @@ export function DirectorChat({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const hasInitialized = useRef(false);
+
   // Trigger initial greeting when opened
   useEffect(() => {
     // For embedded, it's always open, so this runs on mount.
     // For floating, it runs when isOpen becomes true.
-    if (isOpen && messages.length === 0 && !isLoading && append) {
+    if (
+      isOpen &&
+      messages.length === 0 &&
+      !isLoading &&
+      append &&
+      !hasInitialized.current
+    ) {
+      hasInitialized.current = true;
       append({
-        role: "system",
+        role: "user",
         content:
-          "Analyze the provided context and introduce yourself as the Director (GPT-5.2). Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise.",
+          "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise.",
       });
     }
-  }, [isOpen, append, isLoading]);
+  }, [isOpen, append, isLoading, messages.length]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    const safeInput = input || "";
+    if (!safeInput.trim()) return;
 
     if (handleSubmit) {
       handleSubmit(e);
     } else if (append) {
       // Fallback if handleSubmit is missing
-      append({ role: "user", content: input });
+      append({ role: "user", content: safeInput });
       if (setInput) setInput("");
     }
   };
@@ -89,7 +97,7 @@ export function DirectorChat({
             <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Director (GPT 5.2)</h3>
+            <h3 className="font-semibold text-sm">Director</h3>
             <p className="text-xs text-muted-foreground">Orchestrator Mode</p>
           </div>
         </div>
@@ -112,30 +120,36 @@ export function DirectorChat({
               </div>
             )}
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {messages.map((m: any) => (
-              <div
-                key={m.id}
-                className={`flex gap-2 ${
-                  m.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                {m.role === "assistant" && (
-                  <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                  </div>
-                )}
+            {messages
+              .filter(
+                (m: any) =>
+                  m.content !==
+                  "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise."
+              )
+              .map((m: any) => (
                 <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
+                  key={m.id}
+                  className={`flex gap-2 ${
+                    m.role === "user" ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(m as any).content}
+                  {m.role === "assistant" && (
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                    </div>
+                  )}
+                  <div
+                    className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {(m as any).content}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             {isLoading && (
               <div className="flex gap-2 justify-start">
                 <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
@@ -210,7 +224,7 @@ export function DirectorChat({
                 <Sparkles className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">Director (GPT 5.2)</h3>
+                <h3 className="font-semibold text-sm">Director</h3>
                 <p className="text-xs text-muted-foreground">
                   Orchestrator Mode
                 </p>
@@ -235,30 +249,36 @@ export function DirectorChat({
                   </div>
                 )}
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {messages.map((m: any) => (
-                  <div
-                    key={m.id}
-                    className={`flex gap-2 ${
-                      m.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {m.role === "assistant" && (
-                      <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                        <Sparkles className="h-3 w-3 text-primary" />
-                      </div>
-                    )}
+                {messages
+                  .filter(
+                    (m: any) =>
+                      m.content !==
+                      "Analyze the provided context and introduce yourself as the Director. Briefly summarize the current situation and ask the user for their input on the simulation results or next steps. Keep it professional and concise."
+                  )
+                  .map((m: any) => (
                     <div
-                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
-                        m.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-zinc-800 text-zinc-100"
+                      key={m.id}
+                      className={`flex gap-2 ${
+                        m.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {(m as any).content}
+                      {m.role === "assistant" && (
+                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                        </div>
+                      )}
+                      <div
+                        className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                          m.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-zinc-800 text-zinc-100"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {(m as any).content}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 {isLoading && (
                   <div className="flex gap-2 justify-start">
                     <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">

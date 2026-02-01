@@ -14,14 +14,15 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Persona, Idea } from "@/lib/sim/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send, User } from "lucide-react";
+import { MessageSquareText, Send } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 interface PersonaChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   persona: Persona;
-  idea: Idea; // To pass context about what they are critiquing
+  idea: Idea;
+  argument?: { thoughtProcess: string; stance: string };
 }
 
 export function PersonaChatModal({
@@ -29,8 +30,8 @@ export function PersonaChatModal({
   onClose,
   persona,
   idea,
+  argument,
 }: PersonaChatModalProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chatHelpers = useChat({
     id: "persona-" + persona.id,
     // @ts-expect-error - api property exists but is missing in type definition
@@ -39,6 +40,9 @@ export function PersonaChatModal({
       type: "persona",
       persona,
       idea,
+      context: argument
+        ? `Initial Stance: ${argument.stance}. Thought Process: ${argument.thoughtProcess}`
+        : "",
     },
     onError: (err) => {
       console.error("Chat error:", err);
@@ -65,6 +69,19 @@ export function PersonaChatModal({
     }
   }, [messages]);
 
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const safeInput = input || "";
+    if (!safeInput.trim()) return;
+
+    if (handleSubmit) {
+      handleSubmit(e);
+    } else if (append) {
+      append({ role: "user", content: safeInput });
+      if (setInput) setInput("");
+    }
+  };
+
   return (
     <Dialog
       open={isOpen}
@@ -75,21 +92,46 @@ export function PersonaChatModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={persona.avatarUrl} />
+      <DialogContent className="sm:max-w-[500px] bg-zinc-950/95 backdrop-blur-xl border-zinc-800 text-zinc-100 shadow-2xl">
+        <DialogHeader className="border-b border-zinc-800 pb-4">
+          <DialogTitle className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border border-zinc-700">
+              <AvatarImage src={persona.avatarUrl} className="object-cover" />
               <AvatarFallback>{persona.name[0]}</AvatarFallback>
             </Avatar>
-            {persona.name}
-            <span className="text-xs font-normal text-muted-foreground ml-2">
-              {persona.role}
-            </span>
+            <div className="flex flex-col gap-1">
+              <span>{persona.name}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {persona.role}
+              </span>
+            </div>
           </DialogTitle>
-          <DialogDescription>
-            Discussing &quot;{idea.title}&quot;. Ask me anything about my
-            stance.
+          <DialogDescription className="mt-2 space-y-4">
+            <div className="p-3 bg-zinc-900 rounded-md border border-zinc-800 space-y-2">
+              <div>
+                <span className="text-xs font-semibold text-zinc-300 block mb-1">
+                  Backstory
+                </span>
+                <p className="text-xs text-zinc-400 italic leading-relaxed">
+                  &ldquo;{persona.backstory}&rdquo;
+                </p>
+              </div>
+              <div className="pt-2 border-t border-zinc-800">
+                <span className="text-xs font-semibold text-zinc-300 block mb-1">
+                  Initial Thoughts
+                </span>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  {argument?.thoughtProcess || "Thinking..."}
+                </p>
+              </div>
+            </div>
+            <div className="text-sm">
+              Discussing{" "}
+              <span className="text-primary font-medium">
+                &quot;{idea.title}&quot;
+              </span>
+              . Ask me anything about my stance.
+            </div>
           </DialogDescription>
         </DialogHeader>
 
@@ -103,8 +145,11 @@ export function PersonaChatModal({
               </div>
             )}
             {messages.length === 0 && !error && (
-              <div className="text-center text-sm text-muted-foreground italic mt-10">
-                Start a conversation with {persona.name}...
+              <div className="flex flex-col items-center justify-center h-full mt-20 gap-2 text-muted-foreground opacity-50">
+                <MessageSquareText className="h-8 w-8" />
+                <p className="text-sm italic">
+                  Start a conversation with {persona.name}...
+                </p>
               </div>
             )}
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -116,36 +161,32 @@ export function PersonaChatModal({
                 }`}
               >
                 {m.role === "assistant" && (
-                  <Avatar className="h-6 w-6 shrink-0 mt-1">
+                  <Avatar className="h-8 w-8 shrink-0 mt-1 border border-zinc-800">
                     <AvatarImage src={persona.avatarUrl} />
                     <AvatarFallback>{persona.name[0]}</AvatarFallback>
                   </Avatar>
                 )}
                 <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[80%] ${
+                  className={`rounded-2xl px-4 py-2.5 text-sm max-w-[85%] shadow-sm ${
                     m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-zinc-800 text-zinc-100"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-zinc-800 text-zinc-100 rounded-bl-sm"
                   }`}
                 >
                   {m.content}
                 </div>
-                {m.role === "user" && (
-                  <Avatar className="h-6 w-6 shrink-0 mt-1">
-                    <AvatarFallback>
-                      <User className="h-3 w-3" />
-                    </AvatarFallback>
-                  </Avatar>
-                )}
               </div>
             ))}
             {isLoading && (
               <div className="flex gap-3 justify-start">
-                <Avatar className="h-6 w-6 shrink-0 mt-1">
-                  <AvatarFallback>...</AvatarFallback>
+                <Avatar className="h-8 w-8 shrink-0 mt-1 border border-zinc-800">
+                  <AvatarImage src={persona.avatarUrl} />
+                  <AvatarFallback>{persona.name[0]}</AvatarFallback>
                 </Avatar>
-                <div className="bg-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm">
-                  <span className="animate-pulse">Typing...</span>
+                <div className="bg-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm px-4 py-3 text-sm flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce"></span>
                 </div>
               </div>
             )}
@@ -153,27 +194,22 @@ export function PersonaChatModal({
           </div>
         </ScrollArea>
 
-        <DialogFooter>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (handleSubmit) {
-                handleSubmit(e);
-              } else if (append && input.trim()) {
-                append({ role: "user", content: input });
-                if (setInput) setInput("");
-              }
-            }}
-            className="flex w-full items-center space-x-2"
-          >
+        <DialogFooter className="border-t border-zinc-800 pt-4">
+          <form onSubmit={onSubmit} className="flex w-full items-center gap-2">
             <Input
-              value={input}
+              value={input || ""}
               onChange={handleInputChange}
               placeholder="Type your message..."
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 focus-visible:ring-primary"
+              className="bg-zinc-900/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-primary h-11"
+              disabled={isLoading}
             />
-            <Button type="submit" size="icon" disabled={isLoading}>
-              <Send className="h-4 w-4" />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={isLoading || !input?.trim()}
+              className="h-11 w-11 shrink-0"
+            >
+              <Send className="h-5 w-5" />
             </Button>
           </form>
         </DialogFooter>

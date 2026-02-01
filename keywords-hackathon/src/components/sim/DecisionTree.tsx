@@ -6,7 +6,6 @@ import {
   Background,
   useNodesState,
   useEdgesState,
-  Position,
   Node,
   Edge,
 } from "@xyflow/react";
