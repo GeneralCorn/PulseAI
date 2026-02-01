@@ -2,13 +2,48 @@
  * Cost Calculator for Keywords AI API Usage
  *
  * Pricing for OpenAI models via Keywords AI (per 1M tokens):
+ * Source: https://platform.openai.com/docs/pricing
+ * - GPT-5.2: Input $1.75, Output $14.00
+ * - GPT-5-mini: Input $0.25, Output $8.00
  * - GPT-4o: Input $2.50, Output $10.00
  * - GPT-4o-mini: Input $0.15, Output $0.60
- * - GPT-3.5-turbo: Input $0.50, Output $1.50
  */
 
+// Helper function to normalize model names
+function normalizeModelName(model: string): string {
+  const lowerModel = model.toLowerCase();
+
+  // Handle GPT-5 mini variants (gpt-5-mini, gpt-5-mini-2025-08-07, etc.)
+  if (lowerModel.includes("gpt-5-mini") || lowerModel.includes("gpt-5.0-mini")) {
+    return "gpt-5-mini";
+  }
+
+  // Handle GPT-5.2 variants (gpt-5.2, gpt-5-2, etc.)
+  if (lowerModel.includes("gpt-5.2") || lowerModel.includes("gpt-5-2")) {
+    return "gpt-5.2";
+  }
+
+  // Handle GPT-4o variants
+  if (lowerModel.includes("gpt-4o-mini")) {
+    return "gpt-4o-mini";
+  }
+  if (lowerModel.includes("gpt-4o")) {
+    return "gpt-4o";
+  }
+
+  return model;
+}
+
 // Pricing per 1 million tokens (in USD)
-const MODEL_PRICING = {
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  "gpt-5.2": {
+    input: 1.75,   // $1.75 per 1M input tokens
+    output: 14.00, // $14.00 per 1M output tokens
+  },
+  "gpt-5-mini": {
+    input: 0.25,   // $0.25 per 1M input tokens
+    output: 8.00,  // $8.00 per 1M output tokens
+  },
   "gpt-4o": {
     input: 2.50,   // $2.50 per 1M input tokens
     output: 10.00, // $10.00 per 1M output tokens
@@ -17,25 +52,12 @@ const MODEL_PRICING = {
     input: 0.15,   // $0.15 per 1M input tokens
     output: 0.60,  // $0.60 per 1M output tokens
   },
-  "gpt-3.5-turbo": {
-    input: 0.50,   // $0.50 per 1M input tokens
-    output: 1.50,  // $1.50 per 1M output tokens
-  },
-  // Legacy models (for backward compatibility)
-  "gpt-5.2": {
-    input: 2.50,
-    output: 10.00,
-  },
-  "gpt-5-mini": {
-    input: 0.15,
-    output: 0.60,
-  },
-  // Fallback for unknown models
+  // Fallback for unknown models (use GPT-4o-mini pricing)
   default: {
     input: 0.15,
     output: 0.60,
   },
-} as const;
+};
 
 export interface UsageMetrics {
   inputTokens: number;
@@ -47,7 +69,8 @@ export interface UsageMetrics {
  * Calculate cost in USD for a single API call
  */
 export function calculateCost(usage: UsageMetrics): number {
-  const pricing = MODEL_PRICING[usage.model as keyof typeof MODEL_PRICING] || MODEL_PRICING.default;
+  const normalizedModel = normalizeModelName(usage.model);
+  const pricing = MODEL_PRICING[normalizedModel] || MODEL_PRICING.default;
 
   const inputCost = (usage.inputTokens / 1_000_000) * pricing.input;
   const outputCost = (usage.outputTokens / 1_000_000) * pricing.output;

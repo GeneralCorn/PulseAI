@@ -10,7 +10,7 @@ export function Header() {
             <Activity className="h-5 w-5 text-primary" />
         </div>
         <span className="text-lg font-bold tracking-tight text-foreground/90">
-          Synthetic Pulse
+          Pulse
         </span>
       </div>
       

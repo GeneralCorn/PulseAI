@@ -68,11 +68,18 @@ export async function runSimulation(
     if (directorResult.usage) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const usage = directorResult.usage as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = directorResult as any;
+
       usageList.push({
-        inputTokens: usage.promptTokens || usage.inputTokens || 0,
-        outputTokens: usage.completionTokens || usage.outputTokens || 0,
-        model: MODELS.DIRECTOR,
+        // Keywords AI uses snake_case: prompt_tokens, completion_tokens
+        inputTokens: usage.prompt_tokens || usage.promptTokens || usage.inputTokens || 0,
+        outputTokens: usage.completion_tokens || usage.completionTokens || usage.outputTokens || 0,
+        // Use actual model name from response (e.g., "gpt-5-mini-2025-08-07")
+        model: response.model || MODELS.DIRECTOR,
       });
+
+      console.log(`[Director] Model: ${response.model || MODELS.DIRECTOR}, Input: ${usage.prompt_tokens || 0}, Output: ${usage.completion_tokens || 0}`);
     }
 
     const directorOutput = parseJSON(directorResult.text);
@@ -106,10 +113,15 @@ export async function runSimulation(
         if (spawnerResult.usage) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const usage = spawnerResult.usage as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const response = spawnerResult as any;
+
           usageList.push({
-            inputTokens: usage.promptTokens || usage.inputTokens || 0,
-            outputTokens: usage.completionTokens || usage.outputTokens || 0,
-            model: MODELS.SPAWNER,
+            // Keywords AI uses snake_case: prompt_tokens, completion_tokens
+            inputTokens: usage.prompt_tokens || usage.promptTokens || usage.inputTokens || 0,
+            outputTokens: usage.completion_tokens || usage.completionTokens || usage.outputTokens || 0,
+            // Use actual model name from response
+            model: response.model || MODELS.SPAWNER,
           });
         }
 
@@ -156,10 +168,15 @@ export async function runSimulation(
         if (spawnerResult.usage) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const usage = spawnerResult.usage as any;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const response = spawnerResult as any;
+
           usageList.push({
-            inputTokens: usage.promptTokens || usage.inputTokens || 0,
-            outputTokens: usage.completionTokens || usage.outputTokens || 0,
-            model: MODELS.SPAWNER,
+            // Keywords AI uses snake_case: prompt_tokens, completion_tokens
+            inputTokens: usage.prompt_tokens || usage.promptTokens || usage.inputTokens || 0,
+            outputTokens: usage.completion_tokens || usage.completionTokens || usage.outputTokens || 0,
+            // Use actual model name from response
+            model: response.model || MODELS.SPAWNER,
           });
         }
 

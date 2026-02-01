@@ -16,7 +16,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Lightbulb, LogOut, Loader2 } from "lucide-react";
+import { Lightbulb, LogOut, Loader2, LayoutGrid } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -145,7 +145,7 @@ export function UserProfile() {
               <Lightbulb className="mr-2 h-4 w-4" />
               <span>Ideas</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-56 max-h-[300px] overflow-y-auto">
+            <DropdownMenuSubContent className="w-56">
               {ideasLoading ? (
                 <DropdownMenuItem disabled>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -156,24 +156,37 @@ export function UserProfile() {
                   <span>No ideas yet</span>
                 </DropdownMenuItem>
               ) : (
-                ideas.map((idea) => (
-                  <Link
-                    key={idea.id}
-                    href={
-                      idea.simulations?.[0]?.id
-                        ? `/run/${idea.simulations[0].id}`
-                        : "#"
-                    }
-                    passHref
-                  >
-                    <DropdownMenuItem className="cursor-pointer flex items-center justify-between gap-2">
-                      <span className="truncate flex-1">{idea.title}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        ${(idea.credit_usage || 0).toFixed(3)}
-                      </span>
-                    </DropdownMenuItem>
-                  </Link>
-                ))
+                <>
+                  {ideas.slice(0, 3).map((idea) => (
+                    <Link
+                      key={idea.id}
+                      href={
+                        idea.simulations?.[0]?.id
+                          ? `/run/${idea.simulations[0].id}`
+                          : "#"
+                      }
+                      passHref
+                    >
+                      <DropdownMenuItem className="cursor-pointer flex items-center justify-between gap-2">
+                        <span className="truncate flex-1">{idea.title}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          ${(idea.credit_usage || 0).toFixed(3)}
+                        </span>
+                      </DropdownMenuItem>
+                    </Link>
+                  ))}
+                  {ideas.length > 3 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <Link href="/ideas" passHref>
+                        <DropdownMenuItem className="cursor-pointer">
+                          <LayoutGrid className="mr-2 h-4 w-4" />
+                          <span>Show all ({ideas.length})</span>
+                        </DropdownMenuItem>
+                      </Link>
+                    </>
+                  )}
+                </>
               )}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
