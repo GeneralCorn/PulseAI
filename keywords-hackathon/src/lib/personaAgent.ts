@@ -21,10 +21,12 @@ import {
   validatePersonaProfile,
   validatePersonaResponse,
   validateDecisionTrace,
+  validateExperimentSummary,
   parseJSONSafe,
   PersonaProfile,
   PersonaResponse,
   DecisionTrace,
+  ExperimentSummary,
 } from './schemas';
 
 // ============================================================================
@@ -40,6 +42,10 @@ function getPromptPersonaResponseId(): string {
 
 function getPromptDecisionTraceId(): string {
   return process.env.PROMPT_DECISION_TRACE_ID || 'local:decision_trace';
+}
+
+function getPromptExperimentSummaryId(): string {
+  return process.env.PROMPT_EXPERIMENT_SUMMARY_ID || 'local:experiment_summary';
 }
 
 // ============================================================================
@@ -64,6 +70,18 @@ export interface BuildDecisionTraceInput {
   profile: PersonaProfile;
   stimulus: Record<string, unknown>;
   response: PersonaResponse;
+}
+
+export interface GenerateExperimentSummaryInput {
+  experiment_id: string;
+  stimulus: Record<string, unknown>;
+  user_prompt: string;
+  all_responses: Array<{
+    persona_id: string;
+    demographics: Record<string, unknown>;
+    profile: PersonaProfile;
+    response: PersonaResponse;
+  }>;
 }
 
 // ============================================================================
@@ -485,4 +503,57 @@ export async function runExperimentForPersona(
   }
 
   return { personaId, profile, responses };
+}
+
+// ============================================================================
+// generateExperimentSummary: Aggregate all persona responses into summary
+// ============================================================================
+export async function generateExperimentSummary(
+  input: GenerateExperimentSummaryInput,
+  client?: SupabaseClient
+): Promise<ExperimentSummary | null> {
+  const db = client ?? createServerSupabaseClient();
+
+  // Generate summary via LLM
+  const promptId = getPromptExperimentSummaryId();
+  
+  // Prepare all_responses_json with personas info merged
+  const allResponsesJson = input.all_responses.map((r) => ({
+    persona_id: r.persona_id,
+    demographics: r.demographics,
+    profile: r.profile,
+    response: r.response,
+  }));
+
+  // Prepare all_personas_json (just profiles)
+  const allPersonasJson = input.all_responses.map((r) => ({
+    persona_id: r.persona_id,
+    demographics: r.demographics,
+    profile: r.profile,
+  }));
+
+  const variables = {
+    stimulus_json: JSON.stringify(input.stimulus),
+    user_prompt: input.user_prompt,
+    all_responses_json: JSON.stringify(allResponsesJson),
+    all_personas_json: JSON.stringify(allPersonasJson),
+  };
+
+  const result = await parseAndValidateWithRetry<ExperimentSummary>(
+    db,
+    promptId,
+    variables,
+    validateExperimentSummary,
+    { experimentId: input.experiment_id }
+  );
+
+  if (!result) {
+    console.error(
+      `[PersonaAgent] Failed to generate experiment summary for experiment ${input.experiment_id}`
+    );
+    return null;
+  }
+
+  console.log(`[PersonaAgent] Generated experiment summary for experiment ${input.experiment_id}`);
+  return result.data;
 }
