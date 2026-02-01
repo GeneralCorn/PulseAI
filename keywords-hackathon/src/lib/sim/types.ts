@@ -1,32 +1,93 @@
+// ============================================================================
+// Idea (unchanged)
+// ============================================================================
 export interface Idea {
   id: string;
   title: string;
   description: string;
 }
 
-export interface Persona {
-  id: string;
+// ============================================================================
+// Persona - aligned with database personas table
+// ============================================================================
+export interface Demographics {
   name: string;
-  role: string; // e.g., "Gen Z Rights Activist"
-  tags: string[]; // Psychographics
-  backstory: string;
-  powerLevel: 'High' | 'Medium' | 'Low';
-  sentiment: number; // 0-100
-  avatarUrl?: string;
+  age?: number;
+  gender?: string;
+  occupation?: string;
+  income_level?: string;
+  location?: string;
+  [key: string]: unknown;
 }
 
-export interface Argument {
-  personaId: string;
-  ideaId: string;
-  stance: 'support' | 'oppose' | 'neutral';
-  forPoints: string[];
-  againstPoints: string[];
-  thoughtProcess: string;
+export interface PersonaProfile {
+  one_liner: string;
+  pain_points: string[];
+  alternatives: string[];
+  communication_style: {
+    tone: string;
+    verbosity: 'low' | 'medium' | 'high';
+  };
 }
 
+export interface Persona {
+  persona_id: string;
+  demographics: Demographics;
+  profile: PersonaProfile;
+}
+
+// ============================================================================
+// PersonaResponse - aligned with database responses table
+// ============================================================================
+export interface PersonaResponse {
+  response_id: string;
+  persona_id: string;
+  scores: {
+    purchase_intent: number; // 1-5
+    trust: number;
+    clarity: number;
+    differentiation: number;
+  };
+  verdict: {
+    would_try: boolean;
+    would_pay: boolean;
+  };
+  free_text: string;
+}
+
+// ============================================================================
+// DecisionTrace - aligned with database decision_traces table
+// ============================================================================
+export interface PersonaFactor {
+  factor: string;
+  value: unknown;
+  effect: 'positive' | 'negative' | 'neutral';
+  note: string;
+}
+
+export interface StimulusCue {
+  cue: string;
+  value: unknown;
+  effect: 'positive' | 'negative' | 'neutral';
+  note: string;
+}
+
+export interface DecisionTrace {
+  response_id: string;
+  persona_factors_used: PersonaFactor[];
+  stimulus_cues: StimulusCue[];
+  top_objections: string[];
+  what_would_change_my_mind: string[];
+  confidence: number;
+  uncertainty_notes: string[];
+}
+
+// ============================================================================
+// Risk, Scorecard, Recommendation, PlanItem (mostly unchanged)
+// ============================================================================
 export interface Risk {
   id: string;
-  type: string; // e.g., "Legal", "PR", "Technical"
+  type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   likelihood: 'low' | 'medium' | 'high';
   mitigation: string;
@@ -51,17 +112,29 @@ export interface PlanItem {
   description: string;
 }
 
+// ============================================================================
+// SimulationResult - updated to use new types
+// ============================================================================
 export interface SimulationResult {
   runId: string;
-  createdAt: string; // ISO date
-  seed: number;
+  experimentId: string; // corresponds to experiments table
+  createdAt: string;
   mode: 'single' | 'compare';
   ideas: Idea[];
   personas: Persona[];
-  arguments: Argument[];
+  responses: PersonaResponse[]; // replaces arguments
+  decisionTraces: DecisionTrace[]; // new
   risks: Risk[];
   scorecard: Scorecard;
   recommendation: Recommendation;
   plan: PlanItem[];
-  creditUsage?: number; // Total cost in USD for all API calls
+  creditUsage?: number;
+}
+
+// ============================================================================
+// Helper type for simulation options
+// ============================================================================
+export interface SimulationOptions {
+  personaCount?: number;
+  intensityMode?: 'war_room' | 'quick';
 }

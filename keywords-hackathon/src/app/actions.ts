@@ -21,7 +21,6 @@ export async function startSimulation(formData: FormData) {
   const description = formData.get("description") as string;
   const mode = formData.get("mode") as string;
   const isCompare = formData.get("is_compare") === "true";
-  const useMock = mode === "quick";
 
   try {
     // 1. Create Idea(s) in DB (or use temp if DB fails)
@@ -77,8 +76,18 @@ export async function startSimulation(formData: FormData) {
 
         if (ideaBError) {
           console.warn("Failed to create idea B in DB:", ideaBError);
-          // If A succeeded but B failed, we should probably fail or downgrade to temp?
-          // Let's downgrade entire run to temp to be safe.
+          // If A succeeded but B failed, delete A to prevent orphaned records
+          const ideaAId = ideas[0]?.id;
+          if (ideaAId && !ideaAId.startsWith("temp-")) {
+            console.warn(`Deleting orphaned idea A (${ideaAId}) due to idea B failure`);
+            await supabase.from("ideas").delete().eq("id", ideaAId);
+            // Update ideas[0] to be a temp idea
+            ideas[0] = {
+              id: "temp-idea-a",
+              title: ideas[0].title,
+              description: ideas[0].description,
+            };
+          }
           dbEnabled = false;
           ideaB = {
              id: "temp-idea-b",
@@ -108,7 +117,6 @@ export async function startSimulation(formData: FormData) {
     const startTime = Date.now();
     
     const result = await runSimulation(ideas, isCompare ? "compare" : "single", {
-      useMock,
       intensityMode: mode as "war_room" | "quick",
     });
     

@@ -1,37 +1,100 @@
-import { streamText } from "ai";
-import { SYSTEM_PROMPTS } from "@/lib/sim/prompts";
-import { MODELS, keywords, DIRECTOR_MODELS } from "@/lib/keywords";
 import { createClient } from "@/lib/supabase/server";
+import OpenAI from "openai";
 
 export const maxDuration = 30;
+
+// Initialize OpenAI client for Keywords AI
+const openai = new OpenAI({
+  baseURL: process.env.KEYWORDSAI_BASE_URL ?? "https://api.keywordsai.co/api",
+  apiKey: process.env.KEYWORDSAI_API_KEY ?? process.env.NEXT_PUBLIC_KEYWORDS_AI_KEY ?? "",
+});
+
+// Model constants
+const MODELS = {
+  DIRECTOR: "gpt-4o",
+  PERSONA: "gpt-4o-mini",
+};
+
+// Generate system prompt for persona chat
+function getPersonaSystemPrompt(persona: {
+  name: string;
+  occupation?: string;
+  profile: {
+    one_liner: string;
+    pain_points: string[];
+    alternatives: string[];
+    communication_style: {
+      tone: string;
+      verbosity: string;
+    };
+  };
+}, idea: { title: string; description: string }, context?: string): string {
+  return `You are ${persona.name}, a ${persona.occupation || "professional"}.
+
+ABOUT YOU:
+${persona.profile.one_liner}
+
+YOUR PAIN POINTS:
+${persona.profile.pain_points.map((p) => `- ${p}`).join("\n")}
+
+YOUR COMMUNICATION STYLE:
+- Tone: ${persona.profile.communication_style.tone}
+- Verbosity: ${persona.profile.communication_style.verbosity}
+
+CONTEXT:
+You are discussing the idea "${idea.title}": ${idea.description}
+${context ? `\nAdditional context: ${context}` : ""}
+
+INSTRUCTIONS:
+- Stay in character as ${persona.name}
+- Respond based on your profile, pain points, and communication style
+- Be authentic to your persona's perspective
+- Consider how this idea affects your specific situation
+- If asked about your opinion, reference your pain points and alternatives you've considered`;
+}
+
+// Generate system prompt for director chat
+function getDirectorSystemPrompt(context: string): string {
+  return `You are the Director of a stakeholder simulation.
+
+CONTEXT:
+${context}
+
+Your role is to:
+1. Provide strategic analysis of the simulation results
+2. Answer questions about risks, recommendations, and the strategic plan
+3. Help the user understand stakeholder perspectives
+4. Offer actionable insights based on the simulation data
+
+Be professional, analytical, and provide concrete recommendations when asked.`;
+}
 
 export async function POST(req: Request) {
   try {
     const { messages, type, context, persona, idea, simulationId, selectedModel } = await req.json();
 
-    console.log("Chat API Request:", { type, context, persona, idea, simulationId });
+    console.log("Chat API Request:", { type, hasPersona: !!persona, hasIdea: !!idea, simulationId });
 
-    let model = MODELS.DIRECTOR;
+    let model = type === "director" ? MODELS.DIRECTOR : MODELS.PERSONA;
     let systemPrompt = "";
 
     if (type === "director") {
-      model = MODELS.DIRECTOR;
-      systemPrompt = SYSTEM_PROMPTS.CHAT_DIRECTOR(context);
-    } else if (type === "persona") {
-      model = MODELS.SPAWNER;
-      systemPrompt = SYSTEM_PROMPTS.CHAT_PERSONA(persona, idea);
+      systemPrompt = getDirectorSystemPrompt(context || "No context provided");
+    } else if (type === "persona" && persona && idea) {
+      systemPrompt = getPersonaSystemPrompt(persona, idea, context);
+    } else {
+      return new Response(JSON.stringify({ error: "Invalid request: missing persona or idea" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    console.log("Using model:", model);
-
-    // Load chat history from database if simulationId is provided
-    let historicalMessages: any[] = [];
+    // Load chat history from database if simulationId is provided (director only)
+    let historicalMessages: Array<{ role: string; content: string }> = [];
     if (type === "director" && simulationId) {
       try {
         const supabase = await createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
           const { data: history } = await supabase
@@ -42,9 +105,9 @@ export async function POST(req: Request) {
             .order("created_at", { ascending: true });
 
           if (history && history.length > 0) {
-            historicalMessages = history.map((h: any) => ({
-              role: h.role,
-              content: h.content,
+            historicalMessages = history.map((h) => ({
+              role: h.role as string,
+              content: h.content as string,
             }));
             console.log("Loaded", history.length, "historical messages");
           }
@@ -55,94 +118,96 @@ export async function POST(req: Request) {
     }
 
     // Combine historical messages with new messages
-    const allMessages = [...historicalMessages, ...messages];
+    const allMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "system", content: systemPrompt },
+      ...historicalMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+      ...messages.map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+    ];
 
-    // Determine which model(s) to try
-    const modelsToTry = selectedModel === "auto"
-      ? [DIRECTOR_MODELS.GPT_5, DIRECTOR_MODELS.GPT_4O, DIRECTOR_MODELS.GPT_5_2]
-      : [selectedModel || model];
+    // Use selected model or default
+    const modelToUse = selectedModel && selectedModel !== "auto" ? selectedModel : model;
+    console.log("Using model:", modelToUse);
 
-    console.log("Models to try:", modelsToTry);
+    // Stream the response using OpenAI SDK
+    const response = await openai.chat.completions.create({
+      model: modelToUse,
+      messages: allMessages,
+      max_tokens: 1024,
+      stream: true,
+    });
 
-    let result;
-    let lastError;
+    // Create a readable stream from the OpenAI response
+    const encoder = new TextEncoder();
+    let fullResponse = "";
 
-    // Try models in order until one succeeds
-    for (const modelToUse of modelsToTry) {
-      try {
-        console.log(`Attempting with model: ${modelToUse}`);
-
-        result = await streamText({
-          model: keywords.chat(modelToUse),
-          system: systemPrompt,
-          messages: allMessages,
-          maxTokens: 128,
-          async onFinish({ text }) {
-        // Store messages to database after stream completes
-        if (type === "director" && simulationId && text) {
-          try {
-            const supabase = await createClient();
-            const {
-              data: { user },
-            } = await supabase.auth.getUser();
-
-            if (user) {
-              const userMessage = messages[messages.length - 1];
-
-              // Store user message
-              await supabase.from("director_history").insert({
-                simulation_id: simulationId,
-                user_id: user.id,
-                role: "user",
-                content: userMessage.content,
-              });
-
-              // Store assistant response
-              await supabase.from("director_history").insert({
-                simulation_id: simulationId,
-                user_id: user.id,
-                role: "assistant",
-                content: text,
-              });
-
-              console.log("Stored messages to database");
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of response) {
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              fullResponse += content;
+              controller.enqueue(encoder.encode(content));
             }
-          } catch (error) {
-            console.error("Failed to store messages:", error);
           }
+
+          // Store messages to database after stream completes (director only)
+          if (type === "director" && simulationId && fullResponse) {
+            try {
+              const supabase = await createClient();
+              const { data: { user } } = await supabase.auth.getUser();
+
+              if (user) {
+                const userMessage = messages[messages.length - 1];
+
+                // Store user message
+                await supabase.from("director_history").insert({
+                  simulation_id: simulationId,
+                  user_id: user.id,
+                  role: "user",
+                  content: userMessage.content,
+                });
+
+                // Store assistant response
+                await supabase.from("director_history").insert({
+                  simulation_id: simulationId,
+                  user_id: user.id,
+                  role: "assistant",
+                  content: fullResponse,
+                });
+
+                console.log("Stored messages to database");
+              }
+            } catch (error) {
+              console.error("Failed to store messages:", error);
+            }
+          }
+
+          controller.close();
+        } catch (error) {
+          console.error("Stream error:", error);
+          controller.error(error);
         }
       },
-        });
+    });
 
-        // If we got here, the model succeeded - break out of the loop
-        console.log(`Successfully used model: ${modelToUse}`);
-        break;
-      } catch (error) {
-        lastError = error;
-        console.error(`Failed with model ${modelToUse}:`, error);
-
-        // If this was the last model to try, throw the error
-        if (modelToUse === modelsToTry[modelsToTry.length - 1]) {
-          throw error;
-        }
-
-        // Otherwise, continue to the next model
-        console.log("Trying next model...");
-      }
-    }
-
-    if (!result) {
-      throw lastError || new Error("No models available");
-    }
-
-    return result.toTextStreamResponse();
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
   } catch (error) {
     console.error("Chat API Error:", error);
     return new Response(JSON.stringify({ error: "Internal Server Error" }), {
       status: 500,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
   }
 }

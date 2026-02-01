@@ -11,7 +11,9 @@ import {
 import { MessageSquare, X, Send, Sparkles, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { type DirectorModel } from "@/lib/keywords";
+
+// Director model options
+type DirectorModel = "auto" | "gpt-5" | "gpt-4o" | "gpt-5.2" | "claude-sonnet-4-5-20250514";
 
 interface Message {
   id: string;
@@ -38,7 +40,13 @@ export function DirectorChat({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<DirectorModel>("auto");
+  const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -146,36 +154,38 @@ export function DirectorChat({
             <h3 className="font-semibold text-sm">Director</h3>
             <p className="text-xs text-muted-foreground">Orchestrator Mode</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                {selectedModel === "auto" ? "Auto" :
-                 selectedModel === "gpt-5" ? "GPT-5" :
-                 selectedModel === "gpt-4o" ? "GPT-4o" :
-                 selectedModel === "gpt-5.2" ? "GPT-5.2" :
-                 selectedModel === "claude-sonnet-4-5-20250514" ? "Claude" : "Auto"}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setSelectedModel("auto")}>
-                <span className="font-medium">Auto</span>
-                <span className="text-xs text-muted-foreground ml-2">(Recommended)</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("gpt-5")}>
-                GPT-5
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("gpt-4o")}>
-                GPT-4o
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("gpt-5.2")}>
-                GPT-5.2
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedModel("claude-sonnet-4-5-20250514")}>
-                Claude Sonnet 4.5
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {mounted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                  {selectedModel === "auto" ? "Auto" :
+                   selectedModel === "gpt-5" ? "GPT-5" :
+                   selectedModel === "gpt-4o" ? "GPT-4o" :
+                   selectedModel === "gpt-5.2" ? "GPT-5.2" :
+                   selectedModel === "claude-sonnet-4-5-20250514" ? "Claude" : "Auto"}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSelectedModel("auto")}>
+                  <span className="font-medium">Auto</span>
+                  <span className="text-xs text-muted-foreground ml-2">(Recommended)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-5")}>
+                  GPT-5
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-4o")}>
+                  GPT-4o
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("gpt-5.2")}>
+                  GPT-5.2
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedModel("claude-sonnet-4-5-20250514")}>
+                  Claude Sonnet 4.5
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Messages */}
