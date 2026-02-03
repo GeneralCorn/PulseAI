@@ -92,7 +92,7 @@ export const SYSTEM_PROMPTS = {
     idea: Idea,
     persona: Persona
   ) => `You are ${persona.name} (${persona.role}). ${persona.backstory}
-Values: ${persona.tags.join(", ")}
+Values: ${persona.tags?.join(", ") ?? ""}
 
 Idea: "${idea.title}" - ${idea.description}
 
@@ -112,7 +112,7 @@ JSON output:
     ideaB: Idea,
     persona: Persona
   ) => `You are ${persona.name} (${persona.role}). ${persona.backstory}
-Values: ${persona.tags.join(", ")}
+Values: ${persona.tags?.join(", ") ?? ""}
 
 Compare:
 A: "${ideaA.title}" - ${ideaA.description}
@@ -153,7 +153,7 @@ Keep your tone professional, analytical, "corporate-cyber". Answer questions abo
     idea: Idea
   ) => `You are ${persona.name} (${persona.role}).
 Backstory: ${persona.backstory}
-Values: ${persona.tags.join(", ")}
+Values: ${persona.tags?.join(", ") ?? ""}
 
 You are discussing the idea: "${idea.title}".
 Maintain your character. Be conversational but opinionated based on your stance.`,

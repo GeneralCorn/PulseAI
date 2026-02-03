@@ -51,6 +51,11 @@ export interface Persona {
   persona_id: string;
   demographics: Demographics;
   profile: PersonaProfile;
+  // Legacy flat properties for backwards compatibility
+  name?: string;
+  role?: string;
+  backstory?: string;
+  tags?: string[];
 }
 
 // ============================================================================
@@ -104,6 +109,7 @@ export interface DecisionTrace {
 // ============================================================================
 export interface Risk {
   id: string;
+  title?: string;
   type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   likelihood: 'low' | 'medium' | 'high';
