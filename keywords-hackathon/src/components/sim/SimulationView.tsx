@@ -5,6 +5,7 @@ import { ExperimentSummary } from "@/lib/schemas";
 import { PersonaCard } from "@/components/sim/PersonaCard";
 import { ResultPanels } from "@/components/sim/ResultPanels";
 import { DirectorChat } from "@/components/sim/DirectorChat";
+import { SimulationLoading } from "@/components/sim/SimulationLoading";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
@@ -265,6 +266,11 @@ export function SimulationView({
     Risks: ${JSON.stringify(result.risks)}
     Scorecard: ${JSON.stringify(result.scorecard)}
   `;
+
+  // Show loading screen while summary is being generated
+  if (isLoadingSummary) {
+    return <SimulationLoading ideaTitle={mainIdea.title} />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col p-4 gap-4 overflow-hidden h-screen relative">

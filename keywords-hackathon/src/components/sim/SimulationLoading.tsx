@@ -12,11 +12,11 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
   const [stage, setStage] = useState(0);
 
   const stages = [
-    { icon: Users, label: "Spawning stakeholder personas", color: "text-blue-400" },
-    { icon: Zap, label: "Running war room simulation", color: "text-yellow-400" },
-    { icon: Shield, label: "Analyzing risks & vulnerabilities", color: "text-red-400" },
-    { icon: Target, label: "Mapping strategic plan", color: "text-green-400" },
-    { icon: TrendingUp, label: "Generating intelligence report", color: "text-purple-400" },
+    { icon: Users, label: "Spawning stakeholder personas", color: "text-blue-600" },
+    { icon: Zap, label: "Running war room simulation", color: "text-yellow-600" },
+    { icon: Shield, label: "Analyzing risks & vulnerabilities", color: "text-red-600" },
+    { icon: Target, label: "Mapping strategic plan", color: "text-green-600" },
+    { icon: TrendingUp, label: "Generating intelligence report", color: "text-purple-600" },
   ];
 
   useEffect(() => {
@@ -28,12 +28,12 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
   }, [stages.length]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center p-4 overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-4 overflow-hidden relative">
       {/* Animated background grid */}
-      <div className="absolute inset-0 opacity-10">
+      <div className="absolute inset-0 opacity-5">
         <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px),
-                           linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(to right, #000000 1px, transparent 1px),
+                           linear-gradient(to bottom, #000000 1px, transparent 1px)`,
           backgroundSize: '40px 40px',
         }} />
       </div>
@@ -42,7 +42,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-1 h-1 bg-primary/30 rounded-full"
+          className="absolute w-1 h-1 bg-primary/20 rounded-full"
           initial={{
             x: Math.random() * window.innerWidth,
             y: Math.random() * window.innerHeight,
@@ -64,7 +64,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-zinc-900/80 backdrop-blur-xl border border-zinc-800 rounded-2xl p-8 shadow-2xl"
+          className="bg-white/90 backdrop-blur-xl border border-gray-200 rounded-2xl p-8 shadow-2xl"
         >
           {/* Header */}
           <div className="text-center mb-8">
@@ -82,12 +82,12 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
               <Sparkles className="h-12 w-12 text-primary" />
             </motion.div>
 
-            <h1 className="text-3xl font-bold text-white mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Running Simulation
             </h1>
 
             {ideaTitle && (
-              <p className="text-zinc-400 text-sm">
+              <p className="text-gray-600 text-sm">
                 Analyzing: <span className="text-primary font-medium">{ideaTitle}</span>
               </p>
             )}
@@ -106,7 +106,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{
-                      opacity: isActive ? 1 : isComplete ? 0.6 : 0.3,
+                      opacity: isActive ? 1 : isComplete ? 0.7 : 0.4,
                       x: 0,
                       scale: isActive ? 1.02 : 1,
                     }}
@@ -115,12 +115,12 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
                         ? "bg-primary/10 border-primary/30"
                         : isComplete
                         ? "bg-green-500/10 border-green-500/30"
-                        : "bg-zinc-800/30 border-zinc-700/30"
+                        : "bg-gray-100/50 border-gray-200"
                     }`}
                   >
                     <div className={`relative ${isActive ? "animate-pulse" : ""}`}>
                       <Icon className={`h-5 w-5 ${
-                        isActive ? stageData.color : isComplete ? "text-green-400" : "text-zinc-600"
+                        isActive ? stageData.color : isComplete ? "text-green-600" : "text-gray-400"
                       }`} />
 
                       {isActive && (
@@ -140,7 +140,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
 
                     <div className="flex-1">
                       <p className={`text-sm font-medium ${
-                        isActive ? "text-white" : isComplete ? "text-green-300" : "text-zinc-500"
+                        isActive ? "text-gray-900" : isComplete ? "text-green-700" : "text-gray-500"
                       }`}>
                         {stageData.label}
                         {isComplete && " ✓"}
@@ -153,7 +153,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
           </div>
 
           {/* Progress bar */}
-          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-primary via-blue-500 to-purple-500"
               initial={{ width: "0%" }}
@@ -171,9 +171,9 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1 }}
-            className="text-center text-zinc-500 text-xs mt-6"
+            className="text-center text-gray-600 text-xs mt-6"
           >
-            This may take 15-30 seconds. Hang tight...
+            This may take 20-40 seconds. Hang tight...
           </motion.p>
         </motion.div>
 
@@ -184,7 +184,7 @@ export function SimulationLoading({ ideaTitle }: SimulationLoadingProps) {
           transition={{ delay: 2 }}
           className="mt-6 text-center"
         >
-          <p className="text-zinc-600 text-sm italic">
+          <p className="text-gray-700 text-sm italic">
             💡 Tip: The Director Chat can answer questions about any part of your simulation results
           </p>
         </motion.div>

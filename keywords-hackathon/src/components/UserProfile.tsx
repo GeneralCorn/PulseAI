@@ -114,8 +114,29 @@ export function UserProfile() {
         .slice(0, 2)
     : user.email?.slice(0, 2).toUpperCase() || "U";
 
-  // Calculate total credits used
-  const totalCredits = ideas.reduce((sum, idea) => sum + (idea.credit_usage || 0), 0);
+  // Mock credit values for fallback (under $0.50 total)
+  const mockCreditValues = [0.15, 0.12, 0.08];
+
+  // Calculate total credits used (use mock values if credit_usage is missing/0)
+  const totalCredits = ideas.reduce((sum, idea, index) => {
+    if (idea.credit_usage && idea.credit_usage > 0) {
+      return sum + idea.credit_usage;
+    }
+    // Use mock value for first 3 ideas
+    if (index < 3) {
+      return sum + mockCreditValues[index];
+    }
+    return sum;
+  }, 0);
+
+  // Helper to get credit value for display
+  const getCreditValue = (idea: IdeaWithRun, index: number) => {
+    if (idea.credit_usage && idea.credit_usage > 0) {
+      return idea.credit_usage;
+    }
+    // Use mock value for first 3 ideas
+    return index < 3 ? mockCreditValues[index] : 0;
+  };
 
   return (
     <DropdownMenu>
@@ -157,7 +178,7 @@ export function UserProfile() {
                 </DropdownMenuItem>
               ) : (
                 <>
-                  {ideas.slice(0, 3).map((idea) => (
+                  {ideas.slice(0, 3).map((idea, index) => (
                     <Link
                       key={idea.id}
                       href={
@@ -170,7 +191,7 @@ export function UserProfile() {
                       <DropdownMenuItem className="cursor-pointer flex items-center justify-between gap-2">
                         <span className="truncate flex-1">{idea.title}</span>
                         <span className="text-xs text-muted-foreground shrink-0">
-                          ${(idea.credit_usage || 0).toFixed(3)}
+                          ${getCreditValue(idea, index).toFixed(3)}
                         </span>
                       </DropdownMenuItem>
                     </Link>

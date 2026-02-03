@@ -229,7 +229,7 @@ export function DirectorChat({
                   </div>
                 )}
                 <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap ${
                     m.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-foreground"
@@ -342,7 +342,7 @@ export function DirectorChat({
                       </div>
                     )}
                     <div
-                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap ${
                         m.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-zinc-800 text-zinc-100"
