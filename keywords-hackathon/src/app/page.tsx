@@ -31,6 +31,11 @@ export default function LandingPage() {
     formData.append("mode", "war_room");
     // Append compare mode flag
     formData.append("is_compare", isCompareMode ? "true" : "false");
+    // Capture sample_count from input outside form
+    const sampleCountInput = document.getElementById("sample-count") as HTMLInputElement;
+    if (sampleCountInput) {
+      formData.set("sample_count", sampleCountInput.value);
+    }
 
     const result = await startSimulation(formData);
 
@@ -73,7 +78,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-6xl font-bold tracking-tight text-foreground"
             >
-              Simulate the Future.
+              See the Future.
               <span className="block text-primary bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">
                 Before You Build It.
               </span>
@@ -164,7 +169,6 @@ export default function LandingPage() {
                         id="title"
                         name="title"
                         placeholder="e.g., AI-Powered HR Assistant"
-                        defaultValue="GreenProof"
                         required
                         className="bg-background/50 border-white/10 focus:border-primary/50 focus:ring-primary/20 h-12 text-lg placeholder:text-muted-foreground/50"
                       />
@@ -181,7 +185,6 @@ export default function LandingPage() {
                         id="description"
                         name="description"
                         placeholder="Describe your idea, goals, and target audience..."
-                        defaultValue="A B2B supply-chain verification platform that uses computer vision and IoT sensors to track raw materials in real-time. It provides brands with a 'Live Sustainability Score' they can embed on product pages, proving that their 'organic' or 'recycled' claims aren't just greenwashing by showing the actual path from source to shelf."
                         className="min-h-[160px] bg-background/50 border-white/10 focus:border-primary/50 focus:ring-primary/20 resize-none text-base placeholder:text-muted-foreground/50"
                         required
                       />

@@ -40,7 +40,12 @@ export function getUsageStats(): { totalCost: number; callCount: number; usageLi
   };
 }
 
-function trackUsage(model: string, inputTokens?: number, outputTokens?: number): void {
+function trackUsage(
+  model: string,
+  inputTokens?: number,
+  outputTokens?: number,
+  promptId?: string
+): void {
   if (inputTokens !== undefined && outputTokens !== undefined) {
     const usage: UsageMetrics = {
       model,
@@ -48,7 +53,15 @@ function trackUsage(model: string, inputTokens?: number, outputTokens?: number):
       outputTokens,
     };
     _accumulatedUsage.push(usage);
-    _totalCost += calculateCost(usage);
+    const callCost = calculateCost(usage);
+    _totalCost += callCost;
+    console.log(
+      `[KeywordsAI] Token usage for ${promptId || 'unknown'}: ${inputTokens} input, ${outputTokens} output, cost: $${callCost.toFixed(6)} (model: ${model})`
+    );
+  } else {
+    console.warn(
+      `[KeywordsAI] No token usage returned for ${promptId || 'unknown'} (inputTokens: ${inputTokens}, outputTokens: ${outputTokens})`
+    );
   }
   _callCount++;
 }
@@ -145,7 +158,7 @@ export async function callPrompt(
   const usedModel = completion.model ?? model;
 
   // Track usage for credit calculation
-  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens);
+  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens, promptId);
 
   // Debug: log the raw response
   console.log(`[KeywordsAI] Prompt ${promptId} response (first 500 chars):`, content.substring(0, 500));
@@ -188,7 +201,7 @@ export async function callLocalPrompt(
   const usedModel = completion.model ?? model;
 
   // Track usage for credit calculation
-  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens);
+  trackUsage(usedModel, completion.usage?.prompt_tokens, completion.usage?.completion_tokens, promptId);
 
   return {
     content,

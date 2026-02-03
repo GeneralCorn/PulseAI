@@ -30,6 +30,23 @@ export interface PersonaProfile {
   };
 }
 
+export interface NextStep {
+  id: string;
+  title: string;
+  description?: string;
+  chatPrefill: string;
+}
+
+export interface Option {
+  id: string;
+  label: string;
+  summary: string;
+  chatPrefill: string;
+  nextStep?: NextStep;
+  stop?: boolean;
+  stopReason?: string;
+}
+
 export interface Persona {
   persona_id: string;
   demographics: Demographics;
@@ -91,6 +108,7 @@ export interface Risk {
   severity: 'low' | 'medium' | 'high' | 'critical';
   likelihood: 'low' | 'medium' | 'high';
   mitigation: string;
+  chatPrefill?: string; // For node-click Q&A
 }
 
 export interface Scorecard {
@@ -110,6 +128,9 @@ export interface PlanItem {
   id: string;
   title: string;
   description: string;
+  riskId?: string; // Which risk this plan mitigates
+  chatPrefill?: string; // For node-click Q&A
+  options?: Option[]; // Branching options for this plan step
 }
 
 // ============================================================================

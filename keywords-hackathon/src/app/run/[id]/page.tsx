@@ -22,5 +22,5 @@ export default async function RunPage({ params }: RunPageProps) {
 
   const result = JSON.parse(data.result_json) as SimulationResult;
 
-  return <SimulationView result={result} />;
+  return <SimulationView result={result} simulationId={id} />;
 }

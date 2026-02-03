@@ -138,7 +138,7 @@ export async function POST(req: Request) {
     const response = await openai.chat.completions.create({
       model: modelToUse,
       messages: allMessages,
-      max_tokens: 1024,
+      max_tokens: 400,
       stream: true,
     });
 

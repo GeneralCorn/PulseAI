@@ -62,6 +62,14 @@ export function ResultPanels({ result, aiSummary, isLoadingSummary, onGenerateSu
           <CardTitle className="text-lg flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
             Mission Report
+            {result.ideas[0]?.title && (
+              <>
+                <span className="text-muted-foreground font-normal">—</span>
+                <span className="text-primary font-medium truncate max-w-[300px]" title={result.ideas[0].title}>
+                  {result.ideas[0].title}
+                </span>
+              </>
+            )}
           </CardTitle>
           <CardDescription>Run ID: {result.runId.slice(0, 8)}</CardDescription>
         </CardHeader>
@@ -78,6 +86,14 @@ export function ResultPanels({ result, aiSummary, isLoadingSummary, onGenerateSu
         <CardTitle className="text-lg flex items-center gap-2">
           <Target className="h-5 w-5 text-primary" />
           Mission Report
+          {result.ideas[0]?.title && (
+            <>
+              <span className="text-muted-foreground font-normal">—</span>
+              <span className="text-primary font-medium truncate max-w-[300px]" title={result.ideas[0].title}>
+                {result.ideas[0].title}
+              </span>
+            </>
+          )}
         </CardTitle>
         <CardDescription>Run ID: {result.runId.slice(0, 8)}</CardDescription>
       </CardHeader>

@@ -65,7 +65,18 @@ export function DirectorChat({
       content: input,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantMessageId = crypto.randomUUID();
+
+    // Add both user message and empty assistant message immediately
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+      },
+    ]);
     setInput("");
     setIsLoading(true);
     setError(null);
@@ -99,17 +110,6 @@ export function DirectorChat({
         throw new Error("No response body");
       }
 
-      const assistantMessageId = crypto.randomUUID();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-        },
-      ]);
-
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -127,6 +127,8 @@ export function DirectorChat({
     } catch (err) {
       console.error("Chat error:", err);
       setError(err instanceof Error ? err.message : "Failed to send message");
+      // Remove the empty assistant message on error
+      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId));
     } finally {
       setIsLoading(false);
     }
@@ -227,26 +229,16 @@ export function DirectorChat({
                   </div>
                 )}
                 <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap ${
                     m.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-foreground"
-                  }`}
+                  } ${m.role === "assistant" && !m.content && isLoading ? "animate-pulse" : ""}`}
                 >
-                  {m.content}
+                  {m.role === "assistant" && !m.content && isLoading ? "Thinking..." : m.content}
                 </div>
               </div>
             ))}
-            {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && (
-              <div className="flex gap-2 justify-start">
-                <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                </div>
-                <div className="bg-muted text-foreground rounded-lg px-3 py-2 text-sm animate-pulse">
-                  Thinking...
-                </div>
-              </div>
-            )}
             <div ref={scrollRef} />
           </div>
         </div>
@@ -350,26 +342,16 @@ export function DirectorChat({
                       </div>
                     )}
                     <div
-                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] ${
+                      className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap ${
                         m.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-zinc-800 text-zinc-100"
-                      }`}
+                      } ${m.role === "assistant" && !m.content && isLoading ? "animate-pulse" : ""}`}
                     >
-                      {m.content}
+                      {m.role === "assistant" && !m.content && isLoading ? "Thinking..." : m.content}
                     </div>
                   </div>
                 ))}
-                {isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && !messages[messages.length - 1].content && (
-                  <div className="flex gap-2 justify-start">
-                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                      <Sparkles className="h-3 w-3 text-primary" />
-                    </div>
-                    <div className="bg-zinc-800 text-zinc-100 rounded-lg px-3 py-2 text-sm animate-pulse">
-                      Thinking...
-                    </div>
-                  </div>
-                )}
                 <div ref={scrollRef} />
               </div>
             </div>

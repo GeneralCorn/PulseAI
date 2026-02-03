@@ -13,7 +13,7 @@ export function Header() {
           Pulse
         </span>
       </div>
-      
+
       <div className="flex items-center gap-6">
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
             <Link href="#" className="hover:text-foreground transition-colors">Solutions</Link>

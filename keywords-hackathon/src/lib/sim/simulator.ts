@@ -120,109 +120,125 @@ export async function runSimulation(
     };
     const recommendation = directorOutput.recommendation || { summary: "" };
 
-    // --- Step 4: Process each persona ---
-    console.log(`[Simulator] Processing ${personaDemographics.length} personas...`);
+    // --- Step 4: Process each persona in parallel ---
+    console.log(`[Simulator] Processing ${personaDemographics.length} personas in parallel...`);
+
+    const personaResults = await Promise.all(
+      personaDemographics.map(async ({ demographics }, i) => {
+        console.log(
+          `[Simulator] Starting persona ${i + 1}/${personaDemographics.length}: ${demographics.name}`
+        );
+
+        try {
+          // Store persona
+          const personaId = await ensurePersonaStored(demographics, db);
+          console.log(`[Simulator] Persona stored: ${personaId}`);
+
+          // Generate profile
+          const profile = await ensurePersonaProfile(personaId, demographics, db);
+          if (!profile) {
+            console.error(`[Simulator] Failed to generate profile for ${demographics.name}`);
+            return null;
+          }
+
+          // Build persona object
+          const persona: Persona = {
+            persona_id: personaId,
+            demographics: demographics as Demographics,
+            profile: profile as PersonaProfile,
+          };
+
+          // Generate response
+          const responseRow = await runPersonaOnVariant(
+            {
+              experiment_id: experimentId,
+              variant_id: variant.variant_id,
+              persona_id: personaId,
+              demographics,
+              profile,
+              user_prompt: userPrompt,
+              questions: [],
+              stimulus,
+            },
+            db
+          );
+
+          if (!responseRow) {
+            console.error(`[Simulator] Failed to generate response for ${demographics.name}`);
+            return { persona, response: null, trace: null };
+          }
+
+          // Convert ResponseRow to PersonaResponse
+          const personaResponse: PersonaResponse = {
+            response_id: responseRow.response_id,
+            persona_id: personaId,
+            scores: {
+              purchase_intent: responseRow.purchase_intent,
+              trust: responseRow.trust,
+              clarity: responseRow.clarity,
+              differentiation: responseRow.differentiation,
+            },
+            verdict: {
+              would_try: responseRow.would_try,
+              would_pay: responseRow.would_pay,
+            },
+            free_text: responseRow.free_text,
+          };
+
+          // Build decision trace
+          const trace = await buildDecisionTrace(
+            {
+              response_id: responseRow.response_id,
+              experiment_id: experimentId,
+              persona_id: personaId,
+              demographics,
+              profile,
+              stimulus,
+              response: {
+                scores: personaResponse.scores,
+                verdict: personaResponse.verdict,
+                free_text: personaResponse.free_text,
+                top_objections:
+                  (responseRow.extra as { top_objections?: string[] })?.top_objections || [],
+                what_would_change_my_mind:
+                  (responseRow.extra as { what_would_change_my_mind?: string[] })
+                    ?.what_would_change_my_mind || [],
+                confidence: (responseRow.extra as { confidence?: number })?.confidence || 0.5,
+                uncertainty_notes:
+                  (responseRow.extra as { uncertainty_notes?: string[] })?.uncertainty_notes || [],
+              },
+            },
+            db
+          );
+
+          console.log(`[Simulator] Completed persona ${i + 1}/${personaDemographics.length}: ${demographics.name}`);
+
+          return {
+            persona,
+            response: personaResponse,
+            trace: trace ? { response_id: responseRow.response_id, ...trace } : null,
+          };
+        } catch (err) {
+          console.error(`[Simulator] Error processing persona ${demographics.name}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Collect results from parallel processing
     const personas: Persona[] = [];
     const responses: PersonaResponse[] = [];
     const decisionTraces: DecisionTrace[] = [];
 
-    for (let i = 0; i < personaDemographics.length; i++) {
-      const { demographics } = personaDemographics[i];
-      console.log(
-        `[Simulator] Processing persona ${i + 1}/${personaDemographics.length}: ${demographics.name}`
-      );
-
-      try {
-        // Store persona
-        const personaId = await ensurePersonaStored(demographics, db);
-        console.log(`[Simulator] Persona stored: ${personaId}`);
-
-        // Generate profile
-        const profile = await ensurePersonaProfile(personaId, demographics, db);
-        if (!profile) {
-          console.error(`[Simulator] Failed to generate profile for ${demographics.name}`);
-          continue;
-        }
-
-        // Add to personas list
-        personas.push({
-          persona_id: personaId,
-          demographics: demographics as Demographics,
-          profile: profile as PersonaProfile,
-        });
-
-        // Generate response
-        const responseRow = await runPersonaOnVariant(
-          {
-            experiment_id: experimentId,
-            variant_id: variant.variant_id,
-            persona_id: personaId,
-            demographics,
-            profile,
-            user_prompt: userPrompt,
-            questions: [],
-            stimulus,
-          },
-          db
-        );
-
-        if (!responseRow) {
-          console.error(`[Simulator] Failed to generate response for ${demographics.name}`);
-          continue;
-        }
-
-        // Convert ResponseRow to PersonaResponse
-        const personaResponse: PersonaResponse = {
-          response_id: responseRow.response_id,
-          persona_id: personaId,
-          scores: {
-            purchase_intent: responseRow.purchase_intent,
-            trust: responseRow.trust,
-            clarity: responseRow.clarity,
-            differentiation: responseRow.differentiation,
-          },
-          verdict: {
-            would_try: responseRow.would_try,
-            would_pay: responseRow.would_pay,
-          },
-          free_text: responseRow.free_text,
-        };
-        responses.push(personaResponse);
-
-        // Build decision trace
-        const trace = await buildDecisionTrace(
-          {
-            response_id: responseRow.response_id,
-            experiment_id: experimentId,
-            persona_id: personaId,
-            demographics,
-            profile,
-            stimulus,
-            response: {
-              scores: personaResponse.scores,
-              verdict: personaResponse.verdict,
-              free_text: personaResponse.free_text,
-              top_objections:
-                (responseRow.extra as { top_objections?: string[] })?.top_objections || [],
-              what_would_change_my_mind:
-                (responseRow.extra as { what_would_change_my_mind?: string[] })
-                  ?.what_would_change_my_mind || [],
-              confidence: (responseRow.extra as { confidence?: number })?.confidence || 0.5,
-              uncertainty_notes:
-                (responseRow.extra as { uncertainty_notes?: string[] })?.uncertainty_notes || [],
-            },
-          },
-          db
-        );
-
-        if (trace) {
-          decisionTraces.push({
-            response_id: responseRow.response_id,
-            ...trace,
-          });
-        }
-      } catch (err) {
-        console.error(`[Simulator] Error processing persona ${demographics.name}:`, err);
+    for (const result of personaResults) {
+      if (result?.persona) {
+        personas.push(result.persona);
+      }
+      if (result?.response) {
+        responses.push(result.response);
+      }
+      if (result?.trace) {
+        decisionTraces.push(result.trace);
       }
     }
 
@@ -230,8 +246,15 @@ export async function runSimulation(
     const usageStats = getUsageStats();
     const creditUsage = usageStats.totalCost;
 
+    // Calculate total tokens
+    const totalInputTokens = usageStats.usageList.reduce((sum, u) => sum + u.inputTokens, 0);
+    const totalOutputTokens = usageStats.usageList.reduce((sum, u) => sum + u.outputTokens, 0);
+
     console.log(
       `[Simulator] Completed: ${personas.length} personas, ${responses.length} responses, ${decisionTraces.length} traces`
+    );
+    console.log(
+      `[Simulator] Token summary: ${totalInputTokens} input + ${totalOutputTokens} output = ${totalInputTokens + totalOutputTokens} total tokens`
     );
     console.log(
       `[Simulator] Total credit usage: $${creditUsage.toFixed(6)} (${usageStats.callCount} API calls)`
